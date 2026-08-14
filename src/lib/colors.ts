@@ -1,0 +1,18 @@
+export const C = {
+  bg: '#0C0E1A',
+  surface: '#141728',
+  card: '#1B2038',
+  card2: '#222640',
+  border: 'rgba(255,255,255,0.07)',
+  borderStrong: 'rgba(255,255,255,0.13)',
+  accent: '#00C896',
+  accentSubtle: 'rgba(0,200,150,0.12)',
+  gradient: 'linear-gradient(135deg, #00C896, #00A060)',
+  gradientBlue: 'linear-gradient(135deg, #5B73FF, #8B5CF6)',
+  orange: 'linear-gradient(135deg, #FFB84D, #FF8C00)',
+  text: '#FFFFFF',
+  muted: 'rgba(255,255,255,0.55)',
+  dim: 'rgba(255,255,255,0.28)',
+  red: '#FF5C7D',
+  redSubtle: 'rgba(255,92,125,0.12)',
+} as const

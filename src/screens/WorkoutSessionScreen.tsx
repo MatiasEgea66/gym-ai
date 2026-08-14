@@ -1,54 +1,37 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Check, ChevronLeft, Minus, Plus, Timer, Trophy, X } from 'lucide-react'
 import type { Day } from '../data/plan'
-import { addSession, getLastWeight, type ExerciseLog, type Session } from '../lib/storage'
+import { addSession, getActivePlan, getLastWeight, type ExerciseLog, type Session } from '../lib/storage'
+import { C } from '../lib/colors'
 
-type Props = {
-  day: Day
-  onFinish: () => void
-  onExit: () => void
-}
-
+type Props = { day: Day; onFinish: () => void; onExit: () => void }
 type SetState = { done: boolean }
 
-function setsForExercise(rounds: number | undefined): number {
-  return rounds ?? 1
-}
-
-function formatDuration(sec: number): string {
-  const m = Math.floor(sec / 60)
-  const s = sec % 60
-  return `${m}:${s.toString().padStart(2, '0')}`
-}
+function setsForExercise(rounds: number | undefined) { return rounds ?? 1 }
+function fmt(sec: number) { return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}` }
+function todayStr() { return new Date().toISOString().split('T')[0] }
 
 export default function WorkoutSessionScreen({ day, onFinish, onExit }: Props) {
-  const [startedAt] = useState(() => Date.now())
+  const [startedAt] = useState(Date.now)
   const [elapsed, setElapsed] = useState(0)
   const [phase, setPhase] = useState<'active' | 'done'>('active')
   const [confirmExit, setConfirmExit] = useState(false)
   const [restLeft, setRestLeft] = useState<number | null>(null)
+  const [sessionDate, setSessionDate] = useState(todayStr)
 
-  const allExercises = useMemo(
-    () =>
-      day.blocks.flatMap((block) =>
-        block.exercises.map((ex) => ({ block, ex, totalSets: setsForExercise(block.rounds) })),
-      ),
-    [day],
-  )
+  const allExercises = useMemo(() =>
+    day.blocks.flatMap((block) => block.exercises.map((ex) => ({ block, ex, totalSets: setsForExercise(block.rounds) }))),
+    [day])
 
   const [sets, setSets] = useState<Record<string, SetState[]>>(() => {
     const init: Record<string, SetState[]> = {}
-    for (const { ex, totalSets } of allExercises) {
-      init[ex.id] = Array.from({ length: totalSets }, () => ({ done: false }))
-    }
+    for (const { ex, totalSets } of allExercises) init[ex.id] = Array.from({ length: totalSets }, () => ({ done: false }))
     return init
   })
 
   const [weights, setWeights] = useState<Record<string, number | undefined>>(() => {
     const init: Record<string, number | undefined> = {}
-    for (const { ex } of allExercises) {
-      init[ex.id] = getLastWeight(ex.id)
-    }
+    for (const { ex } of allExercises) init[ex.id] = getLastWeight(ex.id)
     return init
   })
 
@@ -64,8 +47,8 @@ export default function WorkoutSessionScreen({ day, onFinish, onExit }: Props) {
     return () => clearTimeout(id)
   }, [restLeft])
 
-  const totalSets = allExercises.reduce((sum, e) => sum + e.totalSets, 0)
-  const doneSets = Object.values(sets).reduce((sum, arr) => sum + arr.filter((s) => s.done).length, 0)
+  const totalSets = allExercises.reduce((s, e) => s + e.totalSets, 0)
+  const doneSets = Object.values(sets).reduce((s, arr) => s + arr.filter((x) => x.done).length, 0)
   const progress = totalSets > 0 ? Math.round((doneSets / totalSets) * 100) : 0
 
   function toggleSet(exerciseId: string, index: number) {
@@ -83,132 +66,100 @@ export default function WorkoutSessionScreen({ day, onFinish, onExit }: Props) {
   function changeWeight(exerciseId: string, delta: number) {
     setWeights((prev) => {
       const current = prev[exerciseId] ?? 0
-      const next = Math.max(0, Math.round((current + delta) * 4) / 4)
-      return { ...prev, [exerciseId]: next }
+      return { ...prev, [exerciseId]: Math.max(0, Math.round((current + delta) * 4) / 4) }
     })
   }
 
-  function finishSession() {
+  function saveAndFinish() {
+    const plan = getActivePlan()
     const exercises: ExerciseLog[] = allExercises.map(({ ex, totalSets: n }) => ({
-      exerciseId: ex.id,
-      name: ex.name,
-      sets: Array.from({ length: n }, (_, i) => ({
-        setNumber: i + 1,
-        done: sets[ex.id]?.[i]?.done ?? false,
-        weightKg: weights[ex.id],
-      })),
+      exerciseId: ex.id, name: ex.name,
+      sets: Array.from({ length: n }, (_, i) => ({ setNumber: i + 1, done: sets[ex.id]?.[i]?.done ?? false, weightKg: weights[ex.id] })),
     }))
-
-    const session: Session = {
-      id: `${day.id}-${startedAt}`,
-      dayId: day.id,
-      dayTitle: `${day.dayLabel} — ${day.title}`,
-      dateISO: new Date().toISOString(),
-      durationSec: elapsed,
-      exercises,
-    }
-
+    const session: Session = { id: `${day.id}-${startedAt}`, dayId: day.id, dayTitle: `${day.dayLabel} — ${day.title}`, dateISO: new Date(sessionDate + 'T12:00:00').toISOString(), durationSec: elapsed, exercises, planId: plan.id }
     addSession(session)
-    setPhase('done')
+    onFinish()
   }
 
+  // ── Done screen ────────────────────────────────────────────────────────────
   if (phase === 'done') {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center px-6 text-center">
-        <div className="mb-5 flex size-20 items-center justify-center rounded-full bg-[var(--accent-subtle)]">
-          <Trophy size={36} className="text-[var(--accent)]" />
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100dvh', padding: '32px 24px', background: C.bg }}>
+        <div style={{ width: '88px', height: '88px', borderRadius: '26px', background: C.gradient, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '24px', boxShadow: '0 20px 60px rgba(0,200,150,0.25)' }}>
+          <Trophy size={40} color="white" />
         </div>
-        <h1 className="mb-2 text-2xl font-bold">¡Entrenamiento completo!</h1>
-        <p className="mb-8 text-sm text-[var(--text-muted)]">
-          {day.dayLabel} — {formatDuration(elapsed)} · {doneSets}/{totalSets} series
-        </p>
-        <button
-          onClick={onFinish}
-          className="w-full max-w-xs rounded-xl bg-[var(--accent)] py-3 font-semibold text-black active:scale-[0.98]"
-        >
-          Volver al inicio
+        <h1 style={{ fontSize: '28px', fontWeight: '700', color: C.text, letterSpacing: '-0.8px', marginBottom: '6px', textAlign: 'center' }}>¡Sesión completada!</h1>
+        <p style={{ fontSize: '15px', color: C.muted, marginBottom: '36px', textAlign: 'center' }}>{day.dayLabel} · {fmt(elapsed)} · {doneSets}/{totalSets} series</p>
+
+        <div style={{ width: '100%', maxWidth: '320px', background: C.card, borderRadius: '16px', border: `1px solid ${C.border}`, padding: '18px 20px', marginBottom: '14px' }}>
+          <p style={{ fontSize: '11px', fontWeight: '600', letterSpacing: '0.4px', textTransform: 'uppercase', color: C.dim, marginBottom: '10px' }}>¿Cuándo fue?</p>
+          <input type="date" value={sessionDate} onChange={(e) => setSessionDate(e.target.value)} max={todayStr()}
+            style={{ width: '100%', background: 'none', border: 'none', outline: 'none', fontSize: '17px', fontWeight: '600', color: C.text, fontFamily: 'inherit', cursor: 'pointer' }} />
+        </div>
+
+        <button onClick={saveAndFinish} style={{ width: '100%', maxWidth: '320px', padding: '15px', background: C.gradient, border: 'none', borderRadius: '14px', color: '#fff', fontSize: '16px', fontWeight: '600', cursor: 'pointer', boxShadow: '0 8px 24px rgba(0,200,150,0.25)' }}>
+          Guardar y volver
         </button>
       </div>
     )
   }
 
+  // ── Active screen ──────────────────────────────────────────────────────────
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-30 border-b border-[var(--border)] bg-[var(--bg)]/95 backdrop-blur">
-        <div className="flex items-center gap-3 px-3 py-3">
-          <button onClick={() => setConfirmExit(true)} className="rounded-full p-1 active:scale-90" aria-label="Salir">
-            <ChevronLeft size={24} />
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100dvh', background: C.bg }}>
+      <header style={{ position: 'sticky', top: 0, zIndex: 30, background: 'rgba(12,14,26,0.92)', backdropFilter: 'blur(30px)', WebkitBackdropFilter: 'blur(30px)', borderBottom: `1px solid ${C.border}` }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px' }}>
+          <button onClick={() => setConfirmExit(true)} style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'rgba(255,255,255,0.08)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+            <ChevronLeft size={20} color={C.text} />
           </button>
-          <div className="flex-1">
-            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--accent)]">{day.dayLabel}</p>
-            <h1 className="text-base font-bold leading-tight">{day.title}</h1>
+          <div style={{ flex: 1 }}>
+            <p style={{ fontSize: '11px', fontWeight: '600', letterSpacing: '0.5px', textTransform: 'uppercase', color: C.accent, marginBottom: '1px' }}>{day.dayLabel}</p>
+            <h1 style={{ fontSize: '15px', fontWeight: '700', color: C.text }}>{day.title}</h1>
           </div>
-          <p className="shrink-0 text-sm font-mono text-[var(--text-muted)]">{formatDuration(elapsed)}</p>
+          <p style={{ fontSize: '14px', fontWeight: '600', fontVariantNumeric: 'tabular-nums', color: C.muted }}>{fmt(elapsed)}</p>
         </div>
-        <div className="h-1 bg-[var(--surface)]">
-          <div className="h-full bg-[var(--accent)] transition-all" style={{ width: `${progress}%` }} />
+        <div style={{ height: '2px', background: 'rgba(255,255,255,0.06)' }}>
+          <div style={{ height: '100%', background: C.gradient, transition: 'width 0.4s ease', width: `${progress}%` }} />
         </div>
       </header>
 
-      <div className="mx-auto w-full max-w-md flex-1 space-y-6 px-4 py-5">
+      <div style={{ flex: 1, maxWidth: '480px', width: '100%', margin: '0 auto', padding: '20px 20px 120px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
         {day.blocks.map((block) => (
           <section key={block.id}>
-            <h2 className="mb-2 flex items-center gap-2 text-sm font-bold">
-              {block.title}
-              {block.rounds ? (
-                <span className="rounded-full bg-[var(--surface)] px-2 py-0.5 text-xs font-medium text-[var(--text-dim)]">
-                  {block.rounds} vueltas
-                </span>
-              ) : null}
-            </h2>
-            <div className="space-y-3">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+              <h2 style={{ fontSize: '14px', fontWeight: '700', color: C.text }}>{block.title}</h2>
+              {block.rounds && <span style={{ padding: '2px 8px', background: 'rgba(255,255,255,0.07)', border: `1px solid ${C.border}`, borderRadius: '20px', fontSize: '11px', fontWeight: '500', color: C.dim }}>{block.rounds} vueltas</span>}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {block.exercises.map((ex) => {
                 const exSets = sets[ex.id] ?? []
                 const weight = weights[ex.id]
                 const showWeight = Boolean(block.rounds)
                 return (
-                  <div key={ex.id} className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-sm font-semibold">{ex.name}</p>
-                      <span className="shrink-0 rounded-full bg-[var(--accent-subtle)] px-2 py-0.5 text-xs font-semibold text-[var(--accent)]">
-                        {ex.target}
-                      </span>
+                  <div key={ex.id} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: '16px', padding: '14px 16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px', marginBottom: '6px' }}>
+                      <p style={{ fontSize: '14px', fontWeight: '600', color: C.text }}>{ex.name}</p>
+                      <span style={{ flexShrink: 0, padding: '3px 8px', background: C.accentSubtle, borderRadius: '20px', fontSize: '11px', fontWeight: '600', color: C.accent }}>{ex.target}</span>
                     </div>
-                    <p className="mt-1 text-xs leading-relaxed text-[var(--text-muted)]">{ex.description}</p>
-
-                    <div className="mt-3 flex items-center justify-between gap-3">
-                      <div className="flex gap-2">
+                    <p style={{ fontSize: '13px', color: C.muted, lineHeight: '1.5', marginBottom: '14px' }}>{ex.description}</p>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+                      <div style={{ display: 'flex', gap: '8px' }}>
                         {exSets.map((s, i) => (
-                          <button
-                            key={i}
-                            onClick={() => toggleSet(ex.id, i)}
-                            className={`flex size-9 items-center justify-center rounded-full border text-sm font-semibold transition-colors active:scale-90 ${
-                              s.done
-                                ? 'border-[var(--accent)] bg-[var(--accent)] text-black'
-                                : 'border-[var(--border)] text-[var(--text-dim)]'
-                            }`}
-                          >
-                            {s.done ? <Check size={16} /> : i + 1}
+                          <button key={i} onClick={() => toggleSet(ex.id, i)} style={{ width: '38px', height: '38px', borderRadius: '50%', border: s.done ? 'none' : `1.5px solid rgba(255,255,255,0.15)`, background: s.done ? C.gradient : 'rgba(255,255,255,0.05)', color: s.done ? '#fff' : C.dim, fontSize: '13px', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.15s' }}>
+                            {s.done ? <Check size={16} strokeWidth={2.5} /> : i + 1}
                           </button>
                         ))}
                       </div>
-
                       {showWeight && (
-                        <div className="flex items-center gap-1.5">
-                          <button
-                            onClick={() => changeWeight(ex.id, -2.5)}
-                            className="flex size-7 items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-muted)] active:scale-90"
-                          >
-                            <Minus size={14} />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <button onClick={() => changeWeight(ex.id, -2.5)} style={{ width: '30px', height: '30px', borderRadius: '50%', background: 'rgba(255,255,255,0.07)', border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: C.muted }}>
+                            <Minus size={13} />
                           </button>
-                          <span className="w-14 text-center text-sm font-semibold tabular-nums">
+                          <span style={{ width: '54px', textAlign: 'center', fontSize: '13px', fontWeight: '600', color: weight ? C.text : C.dim, fontVariantNumeric: 'tabular-nums' }}>
                             {weight ? `${weight}kg` : '—'}
                           </span>
-                          <button
-                            onClick={() => changeWeight(ex.id, 2.5)}
-                            className="flex size-7 items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-muted)] active:scale-90"
-                          >
-                            <Plus size={14} />
+                          <button onClick={() => changeWeight(ex.id, 2.5)} style={{ width: '30px', height: '30px', borderRadius: '50%', background: 'rgba(255,255,255,0.07)', border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: C.muted }}>
+                            <Plus size={13} />
                           </button>
                         </div>
                       )}
@@ -221,49 +172,31 @@ export default function WorkoutSessionScreen({ day, onFinish, onExit }: Props) {
         ))}
       </div>
 
-      <div className="sticky bottom-0 border-t border-[var(--border)] bg-[var(--bg)]/95 px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur">
-        <button
-          onClick={finishSession}
-          className="mx-auto flex w-full max-w-md items-center justify-center gap-2 rounded-xl bg-[var(--accent)] py-3 font-semibold text-black active:scale-[0.98]"
-        >
-          Finalizar entrenamiento ({doneSets}/{totalSets})
+      <div style={{ position: 'sticky', bottom: 0, background: 'rgba(12,14,26,0.92)', backdropFilter: 'blur(30px)', WebkitBackdropFilter: 'blur(30px)', borderTop: `1px solid ${C.border}`, padding: '12px 20px', paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))' }}>
+        <button onClick={() => setPhase('done')} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', width: '100%', maxWidth: '480px', margin: '0 auto', padding: '15px', background: C.gradient, border: 'none', borderRadius: '14px', color: '#fff', fontSize: '16px', fontWeight: '600', cursor: 'pointer', boxShadow: '0 8px 24px rgba(0,200,150,0.2)' }}>
+          Finalizar · {doneSets}/{totalSets}
         </button>
       </div>
 
       {restLeft !== null && (
-        <div className="fixed inset-x-0 bottom-24 z-40 flex justify-center px-4">
-          <div className="flex items-center gap-3 rounded-full border border-[var(--border)] bg-[var(--surface)]/95 px-4 py-2 shadow-lg backdrop-blur">
-            <Timer size={16} className="text-[var(--accent)]" />
-            <span className="text-sm font-semibold tabular-nums">Descanso {formatDuration(restLeft)}</span>
-            <button
-              onClick={() => setRestLeft((r) => (r === null ? null : r + 30))}
-              className="text-xs font-semibold text-[var(--text-muted)]"
-            >
-              +30s
-            </button>
-            <button onClick={() => setRestLeft(null)} className="text-xs font-semibold text-[var(--accent)]">
-              Saltar
-            </button>
+        <div style={{ position: 'fixed', insetInline: 0, bottom: '96px', zIndex: 40, display: 'flex', justifyContent: 'center', padding: '0 20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 20px', background: C.card, backdropFilter: 'blur(20px)', border: `1px solid ${C.borderStrong}`, borderRadius: '100px', boxShadow: '0 8px 32px rgba(0,0,0,0.4)' }}>
+            <Timer size={16} color={C.accent} />
+            <span style={{ fontSize: '14px', fontWeight: '600', color: C.text, fontVariantNumeric: 'tabular-nums' }}>{fmt(restLeft)}</span>
+            <button onClick={() => setRestLeft((r) => r === null ? null : r + 30)} style={{ fontSize: '13px', fontWeight: '600', color: C.dim, background: 'none', border: 'none', cursor: 'pointer' }}>+30s</button>
+            <button onClick={() => setRestLeft(null)} style={{ fontSize: '13px', fontWeight: '600', color: C.accent, background: 'none', border: 'none', cursor: 'pointer' }}>Saltar</button>
           </div>
         </div>
       )}
 
       {confirmExit && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 px-4 pb-6">
-          <div className="w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5">
-            <p className="mb-1 font-semibold">¿Salir del entrenamiento?</p>
-            <p className="mb-4 text-sm text-[var(--text-muted)]">El progreso de esta sesión no se va a guardar.</p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setConfirmExit(false)}
-                className="flex-1 rounded-xl border border-[var(--border)] py-2.5 text-sm font-medium active:scale-[0.98]"
-              >
-                Seguir
-              </button>
-              <button
-                onClick={onExit}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-red-500/15 py-2.5 text-sm font-semibold text-red-400 active:scale-[0.98]"
-              >
+        <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)', padding: '0 20px 24px' }}>
+          <div style={{ width: '100%', maxWidth: '480px', background: C.card, border: `1px solid ${C.border}`, borderRadius: '20px', padding: '20px' }}>
+            <p style={{ fontSize: '16px', fontWeight: '700', color: C.text, marginBottom: '6px' }}>¿Salir del entrenamiento?</p>
+            <p style={{ fontSize: '14px', color: C.muted, marginBottom: '20px' }}>El progreso no se va a guardar.</p>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={() => setConfirmExit(false)} style={{ flex: 1, padding: '13px', background: 'rgba(255,255,255,0.07)', border: `1px solid ${C.border}`, borderRadius: '12px', color: C.text, fontSize: '15px', fontWeight: '600', cursor: 'pointer' }}>Seguir</button>
+              <button onClick={onExit} style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '13px', background: C.redSubtle, border: `1px solid rgba(255,92,125,0.2)`, borderRadius: '12px', color: C.red, fontSize: '15px', fontWeight: '600', cursor: 'pointer' }}>
                 <X size={16} /> Salir
               </button>
             </div>

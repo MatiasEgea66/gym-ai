@@ -1,56 +1,51 @@
 import { ChevronLeft, Play } from 'lucide-react'
 import type { Day } from '../data/plan'
 import { getLastWeight } from '../lib/storage'
+import { C } from '../lib/colors'
 
-type Props = {
-  day: Day
-  onBack: () => void
-  onStart: () => void
-}
+type Props = { day: Day; onBack: () => void; onStart: () => void }
 
 export default function DayDetailScreen({ day, onBack, onStart }: Props) {
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-[var(--border)] bg-[var(--bg)]/95 px-3 py-3 backdrop-blur">
-        <button onClick={onBack} className="rounded-full p-1 active:scale-90" aria-label="Volver">
-          <ChevronLeft size={24} />
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100dvh', background: C.bg }}>
+      <header style={{ position: 'sticky', top: 0, zIndex: 30, display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 16px', background: 'rgba(12,14,26,0.92)', backdropFilter: 'blur(30px)', WebkitBackdropFilter: 'blur(30px)', borderBottom: `1px solid ${C.border}` }}>
+        <button onClick={onBack} style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'rgba(255,255,255,0.08)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+          <ChevronLeft size={20} color={C.text} />
         </button>
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--accent)]">{day.dayLabel}</p>
-          <h1 className="text-base font-bold leading-tight">{day.title}</h1>
+          <p style={{ fontSize: '11px', fontWeight: '600', letterSpacing: '0.5px', textTransform: 'uppercase', color: C.accent, marginBottom: '1px' }}>{day.dayLabel}</p>
+          <h1 style={{ fontSize: '15px', fontWeight: '700', color: C.text, letterSpacing: '-0.3px' }}>{day.title}</h1>
         </div>
       </header>
 
-      <div className="mx-auto w-full max-w-md flex-1 space-y-6 px-4 py-5">
+      <div style={{ flex: 1, maxWidth: '480px', width: '100%', margin: '0 auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
         {day.note && (
-          <p className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-3 text-sm text-[var(--text-muted)]">
-            {day.note}
-          </p>
+          <div style={{ background: 'rgba(255,184,77,0.1)', border: '1px solid rgba(255,184,77,0.2)', borderRadius: '14px', padding: '14px 16px', fontSize: '13px', color: '#FFB84D', lineHeight: '1.5' }}>
+            ⚠️ {day.note}
+          </div>
         )}
 
         {day.blocks.map((block) => (
           <section key={block.id}>
-            <h2 className="mb-2 flex items-center gap-2 text-sm font-bold">
-              {block.title}
-              {block.rounds ? (
-                <span className="rounded-full bg-[var(--surface)] px-2 py-0.5 text-xs font-medium text-[var(--text-dim)]">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+              <h2 style={{ fontSize: '14px', fontWeight: '700', color: C.text }}>{block.title}</h2>
+              {block.rounds && (
+                <span style={{ padding: '2px 8px', background: 'rgba(255,255,255,0.07)', border: `1px solid ${C.border}`, borderRadius: '20px', fontSize: '11px', fontWeight: '500', color: C.dim }}>
                   {block.rounds} vueltas
                 </span>
-              ) : null}
-            </h2>
-            <div className="space-y-2">
+              )}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {block.exercises.map((ex) => {
                 const lastWeight = getLastWeight(ex.id)
                 return (
-                  <div key={ex.id} className="rounded-xl border border-[var(--border)] bg-[var(--card)] p-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-sm font-semibold">{ex.name}</p>
-                      <span className="shrink-0 rounded-full bg-[var(--accent-subtle)] px-2 py-0.5 text-xs font-semibold text-[var(--accent)]">
-                        {ex.target}
-                      </span>
+                  <div key={ex.id} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: '14px', padding: '14px 16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px', marginBottom: '6px' }}>
+                      <p style={{ fontSize: '14px', fontWeight: '600', color: C.text }}>{ex.name}</p>
+                      <span style={{ flexShrink: 0, padding: '3px 8px', background: C.accentSubtle, borderRadius: '20px', fontSize: '11px', fontWeight: '600', color: C.accent }}>{ex.target}</span>
                     </div>
-                    <p className="mt-1 text-xs leading-relaxed text-[var(--text-muted)]">{ex.description}</p>
-                    {lastWeight ? <p className="mt-1 text-xs text-[var(--text-dim)]">Último peso: {lastWeight} kg</p> : null}
+                    <p style={{ fontSize: '13px', color: C.muted, lineHeight: '1.5' }}>{ex.description}</p>
+                    {lastWeight && <p style={{ fontSize: '12px', color: C.dim, marginTop: '6px' }}>Último peso: {lastWeight} kg</p>}
                   </div>
                 )
               })}
@@ -59,12 +54,9 @@ export default function DayDetailScreen({ day, onBack, onStart }: Props) {
         ))}
       </div>
 
-      <div className="sticky bottom-0 border-t border-[var(--border)] bg-[var(--bg)]/95 px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] backdrop-blur">
-        <button
-          onClick={onStart}
-          className="mx-auto flex w-full max-w-md items-center justify-center gap-2 rounded-xl bg-[var(--accent)] py-3 font-semibold text-black active:scale-[0.98]"
-        >
-          <Play size={18} fill="black" /> Comenzar entrenamiento
+      <div style={{ position: 'sticky', bottom: 0, background: 'rgba(12,14,26,0.92)', backdropFilter: 'blur(30px)', WebkitBackdropFilter: 'blur(30px)', borderTop: `1px solid ${C.border}`, padding: '12px 20px', paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))' }}>
+        <button onClick={onStart} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', width: '100%', maxWidth: '480px', margin: '0 auto', padding: '15px', background: C.gradient, border: 'none', borderRadius: '14px', color: '#fff', fontSize: '16px', fontWeight: '600', cursor: 'pointer', boxShadow: '0 8px 24px rgba(0,200,150,0.25)' }}>
+          <Play size={17} fill="white" strokeWidth={0} /> Comenzar entrenamiento
         </button>
       </div>
     </div>

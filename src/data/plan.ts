@@ -13,7 +13,7 @@ export type Block = {
 }
 
 export type Day = {
-  id: 'dia1' | 'dia2' | 'dia3'
+  id: string
   weekday: number // 1 = Monday ... 5 = Friday (JS getDay convention)
   dayLabel: string // "Lunes"
   title: string // "Pierna: Cuádriceps / Glúteo"
