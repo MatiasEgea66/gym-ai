@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import BottomNav from './components/BottomNav'
+import InstallPrompt from './components/InstallPrompt'
 import InicioScreen from './screens/InicioScreen'
 import RutinaScreen from './screens/RutinaScreen'
 import HistorialScreen from './screens/HistorialScreen'
@@ -51,6 +52,7 @@ function App() {
         {tab === 'perfil' && <PerfilScreen onLogout={() => setIsLoggedIn(false)} />}
       </div>
       <BottomNav active={tab} onChange={setTab} />
+      <InstallPrompt />
     </div>
   )
 }
