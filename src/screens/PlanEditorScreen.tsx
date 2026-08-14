@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { ChevronLeft, Plus, Trash2, GripVertical, Minus } from 'lucide-react'
-import { createPlan, savePlan, getActivePlan, type CustomDay, type CustomExercise, type Plan } from '../lib/storage'
+import { createPlan, savePlan, type CustomDay, type CustomExercise, type Plan } from '../lib/storage'
 
 type Props = {
   plan?: Plan
@@ -125,7 +125,7 @@ export default function PlanEditorScreen({ plan, onBack, onSaved }: Props) {
         </p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {days.map((day, dayIdx) => (
+          {days.map((day, _dayIdx) => (
             <div key={day.id} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: '18px', overflow: 'hidden' }}>
               {/* Day header */}
               <div style={{ padding: '16px 16px 12px', borderBottom: `1px solid ${C.border}` }}>
