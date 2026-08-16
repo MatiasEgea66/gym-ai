@@ -3,6 +3,7 @@ export type Exercise = {
   name: string
   target: string // e.g. "3 x 12", "10/10", "20''"
   description: string
+  bodyweight?: boolean
 }
 
 export type Block = {

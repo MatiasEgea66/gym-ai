@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { ChevronLeft, Plus, Trash2, GripVertical, Minus } from 'lucide-react'
 import { createPlan, savePlan, type CustomDay, type CustomExercise, type Plan } from '../lib/storage'
 
@@ -37,6 +37,13 @@ export default function PlanEditorScreen({ plan, onBack, onSaved }: Props) {
   const [days, setDays] = useState<CustomDay[]>(plan?.customDays ?? [newDay(0)])
   const [addingExFor, setAddingExFor] = useState<string | null>(null)
   const [newEx, setNewEx] = useState<CustomExercise>(newExercise)
+
+  // Drag & drop state
+  const dragIndexRef = useRef<number | null>(null)
+  const dragStartYRef = useRef<number>(0)
+  const [dragIndex, setDragIndex] = useState<number | null>(null)
+  const [dragOffsetY, setDragOffsetY] = useState(0)
+  const dayCardRefs = useRef<(HTMLDivElement | null)[]>([])
 
   function addDay() {
     setDays((d) => [...d, newDay(d.length)])
@@ -79,6 +86,57 @@ export default function PlanEditorScreen({ plan, onBack, onSaved }: Props) {
           : day,
       ),
     )
+  }
+
+  function toggleBodyweight(dayId: string, exId: string) {
+    setDays((d) =>
+      d.map((day) =>
+        day.id === dayId
+          ? { ...day, exercises: day.exercises.map((e) => (e.id === exId ? { ...e, bodyweight: !e.bodyweight } : e)) }
+          : day,
+      ),
+    )
+  }
+
+  // Drag handlers
+  function onGripTouchStart(e: React.TouchEvent, index: number) {
+    e.stopPropagation()
+    dragIndexRef.current = index
+    dragStartYRef.current = e.touches[0].clientY
+    setDragIndex(index)
+    setDragOffsetY(0)
+  }
+
+  function onGripTouchMove(e: React.TouchEvent) {
+    if (dragIndexRef.current === null) return
+    const dy = e.touches[0].clientY - dragStartYRef.current
+    setDragOffsetY(dy)
+  }
+
+  function onGripTouchEnd(e: React.TouchEvent) {
+    if (dragIndexRef.current === null) return
+    const fromIndex = dragIndexRef.current
+    const touchY = e.changedTouches[0].clientY
+    // Find target index by comparing touch Y with card centers
+    let targetIndex = fromIndex
+    dayCardRefs.current.forEach((ref, i) => {
+      if (!ref) return
+      const rect = ref.getBoundingClientRect()
+      const center = rect.top + rect.height / 2
+      if (touchY > center && i > targetIndex) targetIndex = i
+      if (touchY < center && i < targetIndex) targetIndex = i
+    })
+    if (targetIndex !== fromIndex) {
+      setDays((prev) => {
+        const next = [...prev]
+        const [moved] = next.splice(fromIndex, 1)
+        next.splice(targetIndex, 0, moved)
+        return next
+      })
+    }
+    dragIndexRef.current = null
+    setDragIndex(null)
+    setDragOffsetY(0)
   }
 
   function handleSave() {
@@ -124,17 +182,41 @@ export default function PlanEditorScreen({ plan, onBack, onSaved }: Props) {
           Días de entrenamiento
         </p>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {days.map((day, _dayIdx) => (
-            <div key={day.id} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: '18px', overflow: 'hidden' }}>
+        <div
+          style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}
+          onTouchMove={onGripTouchMove}
+          onTouchEnd={onGripTouchEnd}
+        >
+          {days.map((day, dayIdx) => (
+            <div
+              key={day.id}
+              ref={(el) => { dayCardRefs.current[dayIdx] = el }}
+              style={{
+                background: C.card,
+                border: `1px solid ${C.border}`,
+                borderRadius: '18px',
+                overflow: 'hidden',
+                transform: dragIndex === dayIdx ? `translateY(${dragOffsetY}px)` : 'none',
+                transition: dragIndex === dayIdx ? 'none' : 'transform 0.2s ease',
+                zIndex: dragIndex === dayIdx ? 10 : 1,
+                position: 'relative',
+                opacity: dragIndex !== null && dragIndex !== dayIdx ? 0.6 : 1,
+              }}
+            >
               {/* Day header */}
               <div style={{ padding: '16px 16px 12px', borderBottom: `1px solid ${C.border}` }}>
                 <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                  <div
+                    onTouchStart={(e) => onGripTouchStart(e, dayIdx)}
+                    style={{ display: 'flex', alignItems: 'center', cursor: 'grab', padding: '4px 2px', flexShrink: 0 }}
+                  >
+                    <GripVertical size={16} color={C.dim} />
+                  </div>
                   <input
                     placeholder="Día A"
                     value={day.label}
                     onChange={(e) => updateDayField(day.id, 'label', e.target.value)}
-                    style={{ width: '80px', padding: '8px 10px', background: C.card2, border: `1px solid ${C.border}`, borderRadius: '10px', color: C.accent, fontSize: '13px', fontWeight: '700', outline: 'none', fontFamily: 'inherit', letterSpacing: '-0.1px' }}
+                    style={{ width: '70px', padding: '8px 10px', background: C.card2, border: `1px solid ${C.border}`, borderRadius: '10px', color: C.accent, fontSize: '13px', fontWeight: '700', outline: 'none', fontFamily: 'inherit', letterSpacing: '-0.1px' }}
                   />
                   <input
                     placeholder="Pecho y Tríceps"
@@ -159,6 +241,24 @@ export default function PlanEditorScreen({ plan, onBack, onSaved }: Props) {
                       <p style={{ fontSize: '13px', fontWeight: '600', color: C.text, letterSpacing: '-0.2px' }}>{ex.name}</p>
                       <p style={{ fontSize: '11px', color: C.dim, marginTop: '1px' }}>{ex.target}{ex.description ? ` · ${ex.description}` : ''}</p>
                     </div>
+                    {/* Bodyweight toggle */}
+                    <button
+                      onClick={() => toggleBodyweight(day.id, ex.id)}
+                      style={{
+                        flexShrink: 0,
+                        padding: '3px 7px',
+                        background: ex.bodyweight ? C.accentSubtle : 'rgba(255,255,255,0.06)',
+                        border: `1px solid ${ex.bodyweight ? C.accent : C.border}`,
+                        borderRadius: '8px',
+                        color: ex.bodyweight ? C.accent : C.dim,
+                        fontSize: '10px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {ex.bodyweight ? 'Sin peso' : 'Con peso'}
+                    </button>
                     {/* Sets stepper */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
                       <button onClick={() => updateExSets(day.id, ex.id, -1)} style={{ width: '22px', height: '22px', borderRadius: '50%', background: 'rgba(255,255,255,0.07)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>

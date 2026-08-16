@@ -18,6 +18,7 @@ export type CustomExercise = {
   target: string
   description: string
   sets: number
+  bodyweight?: boolean
 }
 
 export type CustomDay = {
@@ -92,6 +93,7 @@ export function customDayToDay(day: CustomDay): Day {
     name: ex.name,
     target: ex.target,
     description: ex.description,
+    bodyweight: ex.bodyweight,
   }))
   const block: Block = {
     id: `${day.id}-block`,

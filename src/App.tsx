@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import BottomNav from './components/BottomNav'
 import InstallPrompt from './components/InstallPrompt'
 import InicioScreen from './screens/InicioScreen'
@@ -25,6 +25,24 @@ function App() {
   const [screen, setScreen] = useState<Screen>({ type: 'tabs' })
   const [refreshKey, setRefreshKey] = useState(0)
 
+  const TABS: Tab[] = ['inicio', 'rutina', 'historial', 'perfil']
+  const swipeStartRef = useRef<{ x: number; y: number } | null>(null)
+
+  function handleSwipeTouchStart(e: React.TouchEvent) {
+    swipeStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }
+  }
+
+  function handleSwipeTouchEnd(e: React.TouchEvent) {
+    if (!swipeStartRef.current) return
+    const dx = e.changedTouches[0].clientX - swipeStartRef.current.x
+    const dy = Math.abs(e.changedTouches[0].clientY - swipeStartRef.current.y)
+    swipeStartRef.current = null
+    if (Math.abs(dx) < 80 || dy > 40) return
+    const currentIndex = TABS.indexOf(tab)
+    if (dx < 0 && currentIndex < TABS.length - 1) setTab(TABS[currentIndex + 1])
+    if (dx > 0 && currentIndex > 0) setTab(TABS[currentIndex - 1])
+  }
+
   if (!isLoggedIn) return <LoginScreen onLogin={() => setIsLoggedIn(true)} />
 
   if (screen.type === 'session') {
@@ -44,7 +62,7 @@ function App() {
   }
 
   return (
-    <div style={{ minHeight: '100dvh', background: '#0C0E1A' }}>
+    <div style={{ minHeight: '100dvh', background: '#0C0E1A' }} onTouchStart={handleSwipeTouchStart} onTouchEnd={handleSwipeTouchEnd}>
       <div style={{ paddingBottom: '80px' }}>
         {tab === 'inicio' && <InicioScreen key={refreshKey} onOpenDay={(day) => setScreen({ type: 'dayDetail', day })} onStart={(day) => setScreen({ type: 'session', day })} />}
         {tab === 'rutina' && <RutinaScreen key={refreshKey} onOpenDay={(day) => setScreen({ type: 'dayDetail', day })} onNewPlan={() => setScreen({ type: 'planEditor' })} onEditPlan={(plan) => setScreen({ type: 'planEditor', plan })} />}

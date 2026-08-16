@@ -1,15 +1,35 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Check, ChevronLeft, Minus, Plus, Timer, Trophy, X } from 'lucide-react'
 import type { Day } from '../data/plan'
 import { addSession, getActivePlan, getLastWeight, type ExerciseLog, type Session } from '../lib/storage'
 import { C } from '../lib/colors'
 
 type Props = { day: Day; onFinish: () => void; onExit: () => void }
-type SetState = { done: boolean }
+type SetState = { done: boolean; flash?: boolean }
 
 function setsForExercise(rounds: number | undefined) { return rounds ?? 1 }
 function fmt(sec: number) { return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}` }
 function todayStr() { return new Date().toISOString().split('T')[0] }
+
+const CONFETTI_COLORS = ['#00C896', '#00A060', '#5B73FF', '#8B5CF6', '#00E5B0', '#FFFFFF', '#3DFFD0', '#7BFFCE']
+
+const CONFETTI_STYLE = `
+@keyframes confetti-rise {
+  0%   { transform: translateY(0) rotate(0deg) scale(1); opacity: 1; }
+  80%  { opacity: 1; }
+  100% { transform: translateY(-320px) rotate(720deg) scale(0.4); opacity: 0; }
+}
+@keyframes confetti-drift {
+  0%   { margin-left: 0px; }
+  50%  { margin-left: 30px; }
+  100% { margin-left: -20px; }
+}
+.confetti-piece {
+  position: absolute;
+  bottom: 100px;
+  animation: confetti-rise 1.6s ease-out forwards, confetti-drift 1.6s ease-in-out forwards;
+}
+`
 
 export default function WorkoutSessionScreen({ day, onFinish, onExit }: Props) {
   const [startedAt] = useState(Date.now)
@@ -35,6 +55,15 @@ export default function WorkoutSessionScreen({ day, onFinish, onExit }: Props) {
     return init
   })
 
+  // Capture initial last weights as baseline for PR detection
+  const lastWeightsRef = useRef<Record<string, number | undefined>>({})
+  useEffect(() => {
+    const init: Record<string, number | undefined> = {}
+    for (const { ex } of allExercises) init[ex.id] = getLastWeight(ex.id)
+    lastWeightsRef.current = init
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   useEffect(() => {
     if (phase !== 'active') return
     const id = setInterval(() => setElapsed(Math.round((Date.now() - startedAt) / 1000)), 1000)
@@ -56,9 +85,22 @@ export default function WorkoutSessionScreen({ day, onFinish, onExit }: Props) {
       const next = { ...prev }
       const arr = [...next[exerciseId]]
       const wasDone = arr[index].done
-      arr[index] = { done: !wasDone }
+      arr[index] = { done: !wasDone, flash: !wasDone }
       next[exerciseId] = arr
-      if (!wasDone) setRestLeft(60)
+      if (!wasDone) {
+        setRestLeft(60)
+        navigator.vibrate?.(10)
+        // Clear flash after animation
+        setTimeout(() => {
+          setSets((p) => {
+            const n = { ...p }
+            const a = [...n[exerciseId]]
+            a[index] = { ...a[index], flash: false }
+            n[exerciseId] = a
+            return n
+          })
+        }, 400)
+      }
       return next
     })
   }
@@ -81,23 +123,66 @@ export default function WorkoutSessionScreen({ day, onFinish, onExit }: Props) {
     onFinish()
   }
 
+  // ── Swipe handler factory ──────────────────────────────────────────────────
+  function makeSwipeHandlers(exerciseId: string, index: number) {
+    let startX = 0
+    let startY = 0
+    return {
+      onTouchStart: (e: React.TouchEvent) => {
+        startX = e.touches[0].clientX
+        startY = e.touches[0].clientY
+      },
+      onTouchEnd: (e: React.TouchEvent) => {
+        const dx = e.changedTouches[0].clientX - startX
+        const dy = Math.abs(e.changedTouches[0].clientY - startY)
+        if (dx > 60 && dy < 40) {
+          toggleSet(exerciseId, index)
+        }
+      },
+    }
+  }
+
   // ── Done screen ────────────────────────────────────────────────────────────
   if (phase === 'done') {
+    const confettiPieces = Array.from({ length: 20 }, (_, i) => {
+      const color = CONFETTI_COLORS[i % CONFETTI_COLORS.length]
+      const size = 6 + Math.floor(Math.random() * 8)
+      const left = 10 + Math.floor(Math.random() * 80)
+      const delay = (i * 0.07).toFixed(2)
+      const isCircle = i % 3 !== 0
+      return (
+        <div
+          key={i}
+          className="confetti-piece"
+          style={{
+            left: `${left}%`,
+            width: `${size}px`,
+            height: `${size}px`,
+            background: color,
+            borderRadius: isCircle ? '50%' : '2px',
+            animationDelay: `${delay}s`,
+          }}
+        />
+      )
+    })
+
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100dvh', padding: '32px 24px', background: C.bg }}>
-        <div style={{ width: '88px', height: '88px', borderRadius: '26px', background: C.gradient, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '24px', boxShadow: '0 20px 60px rgba(0,200,150,0.25)' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100dvh', padding: '32px 24px', background: C.bg, position: 'relative', overflow: 'hidden' }}>
+        <style>{CONFETTI_STYLE}</style>
+        {confettiPieces}
+        <div style={{ width: '88px', height: '88px', borderRadius: '26px', background: C.gradient, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '24px', boxShadow: '0 20px 60px rgba(0,200,150,0.25)', position: 'relative', zIndex: 1 }}>
           <Trophy size={40} color="white" />
         </div>
-        <h1 style={{ fontSize: '28px', fontWeight: '700', color: C.text, letterSpacing: '-0.8px', marginBottom: '6px', textAlign: 'center' }}>¡Sesión completada!</h1>
-        <p style={{ fontSize: '15px', color: C.muted, marginBottom: '36px', textAlign: 'center' }}>{day.dayLabel} · {fmt(elapsed)} · {doneSets}/{totalSets} series</p>
+        <h1 style={{ fontSize: '28px', fontWeight: '700', color: C.text, letterSpacing: '-0.8px', marginBottom: '6px', textAlign: 'center', position: 'relative', zIndex: 1 }}>¡Sesión completada!</h1>
+        <p style={{ fontSize: '15px', color: C.muted, marginBottom: '36px', textAlign: 'center', position: 'relative', zIndex: 1 }}>{day.dayLabel} · {fmt(elapsed)} · {doneSets}/{totalSets} series</p>
 
-        <div style={{ width: '100%', maxWidth: '320px', background: C.card, borderRadius: '16px', border: `1px solid ${C.border}`, padding: '18px 20px', marginBottom: '14px' }}>
+        <div style={{ width: '100%', maxWidth: '320px', background: C.card, borderRadius: '16px', border: `1px solid ${C.border}`, padding: '18px 20px', marginBottom: '14px', position: 'relative', zIndex: 1 }}>
           <p style={{ fontSize: '11px', fontWeight: '600', letterSpacing: '0.4px', textTransform: 'uppercase', color: C.dim, marginBottom: '10px' }}>¿Cuándo fue?</p>
           <input type="date" value={sessionDate} onChange={(e) => setSessionDate(e.target.value)} max={todayStr()}
             style={{ width: '100%', background: 'none', border: 'none', outline: 'none', fontSize: '17px', fontWeight: '600', color: C.text, fontFamily: 'inherit', cursor: 'pointer' }} />
         </div>
 
-        <button onClick={saveAndFinish} style={{ width: '100%', maxWidth: '320px', padding: '15px', background: C.gradient, border: 'none', borderRadius: '14px', color: '#fff', fontSize: '16px', fontWeight: '600', cursor: 'pointer', boxShadow: '0 8px 24px rgba(0,200,150,0.25)' }}>
+        <button onClick={saveAndFinish} style={{ width: '100%', maxWidth: '320px', padding: '15px', background: C.gradient, border: 'none', borderRadius: '14px', color: '#fff', fontSize: '16px', fontWeight: '600', cursor: 'pointer', boxShadow: '0 8px 24px rgba(0,200,150,0.25)', position: 'relative', zIndex: 1 }}>
           Guardar y volver
         </button>
       </div>
@@ -134,7 +219,9 @@ export default function WorkoutSessionScreen({ day, onFinish, onExit }: Props) {
               {block.exercises.map((ex) => {
                 const exSets = sets[ex.id] ?? []
                 const weight = weights[ex.id]
-                const showWeight = Boolean(block.rounds)
+                const showWeight = Boolean(block.rounds) && ex.bodyweight !== true
+                const lastWeight = lastWeightsRef.current[ex.id]
+                const isPR = showWeight && weight !== undefined && lastWeight !== undefined && weight > lastWeight
                 return (
                   <div key={ex.id} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: '16px', padding: '14px 16px' }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px', marginBottom: '6px' }}>
@@ -144,20 +231,47 @@ export default function WorkoutSessionScreen({ day, onFinish, onExit }: Props) {
                     <p style={{ fontSize: '13px', color: C.muted, lineHeight: '1.5', marginBottom: '14px' }}>{ex.description}</p>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
                       <div style={{ display: 'flex', gap: '8px' }}>
-                        {exSets.map((s, i) => (
-                          <button key={i} onClick={() => toggleSet(ex.id, i)} style={{ width: '38px', height: '38px', borderRadius: '50%', border: s.done ? 'none' : `1.5px solid rgba(255,255,255,0.15)`, background: s.done ? C.gradient : 'rgba(255,255,255,0.05)', color: s.done ? '#fff' : C.dim, fontSize: '13px', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.15s' }}>
-                            {s.done ? <Check size={16} strokeWidth={2.5} /> : i + 1}
-                          </button>
-                        ))}
+                        {exSets.map((s, i) => {
+                          const swipeHandlers = makeSwipeHandlers(ex.id, i)
+                          return (
+                            <button
+                              key={i}
+                              onClick={() => toggleSet(ex.id, i)}
+                              {...swipeHandlers}
+                              style={{
+                                width: '38px',
+                                height: '38px',
+                                borderRadius: '50%',
+                                border: s.done ? 'none' : `1.5px solid rgba(255,255,255,0.15)`,
+                                background: s.flash ? 'rgba(0,200,150,0.6)' : s.done ? C.gradient : 'rgba(255,255,255,0.05)',
+                                color: s.done ? '#fff' : C.dim,
+                                fontSize: '13px',
+                                fontWeight: '600',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                                transition: s.flash ? 'background 0.05s' : 'all 0.15s',
+                              }}
+                            >
+                              {s.done ? <Check size={16} strokeWidth={2.5} /> : i + 1}
+                            </button>
+                          )
+                        })}
                       </div>
                       {showWeight && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <button onClick={() => changeWeight(ex.id, -2.5)} style={{ width: '30px', height: '30px', borderRadius: '50%', background: 'rgba(255,255,255,0.07)', border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: C.muted }}>
                             <Minus size={13} />
                           </button>
-                          <span style={{ width: '54px', textAlign: 'center', fontSize: '13px', fontWeight: '600', color: weight ? C.text : C.dim, fontVariantNumeric: 'tabular-nums' }}>
-                            {weight ? `${weight}kg` : '—'}
-                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <span style={{ width: '54px', textAlign: 'center', fontSize: '13px', fontWeight: '600', color: weight ? C.text : C.dim, fontVariantNumeric: 'tabular-nums' }}>
+                              {weight ? `${weight}kg` : '—'}
+                            </span>
+                            {isPR && (
+                              <span style={{ padding: '1px 5px', background: C.accentSubtle, border: `1px solid ${C.accent}`, borderRadius: '6px', fontSize: '10px', fontWeight: '700', color: C.accent, letterSpacing: '0.3px' }}>PR</span>
+                            )}
+                          </div>
                           <button onClick={() => changeWeight(ex.id, 2.5)} style={{ width: '30px', height: '30px', borderRadius: '50%', background: 'rgba(255,255,255,0.07)', border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: C.muted }}>
                             <Plus size={13} />
                           </button>
