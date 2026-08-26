@@ -15,8 +15,8 @@ export type Block = {
 
 export type Day = {
   id: string
-  weekday: number // 1 = Monday ... 5 = Friday (JS getDay convention)
-  dayLabel: string // "Lunes"
+  weekday?: number // legacy, not used for scheduling
+  dayLabel: string // "Día 1"
   title: string // "Pierna: Cuádriceps / Glúteo"
   note?: string
   blocks: Block[]
@@ -41,8 +41,7 @@ export const PLAN_INTRO = {
 export const PLAN: Day[] = [
   {
     id: 'dia1',
-    weekday: 1,
-    dayLabel: 'Lunes',
+    dayLabel: 'Día 1',
     title: 'Pierna: Cuádriceps / Glúteo',
     blocks: [
       {
@@ -181,8 +180,7 @@ export const PLAN: Day[] = [
   },
   {
     id: 'dia2',
-    weekday: 3,
-    dayLabel: 'Miércoles',
+    dayLabel: 'Día 2',
     title: 'Empuje: Pecho / Hombro / Tríceps',
     blocks: [
       {
@@ -328,8 +326,7 @@ export const PLAN: Day[] = [
   },
   {
     id: 'dia3',
-    weekday: 5,
-    dayLabel: 'Viernes',
+    dayLabel: 'Día 3',
     title: 'Tirón: Espalda / Bíceps + accesorio de pierna',
     note:
       'El bloque de pierna al final es de activación, con carga liviana y lejos del fallo — el objetivo es mantener el ' +
