@@ -228,55 +228,66 @@ export default function WorkoutSessionScreen({ day, onFinish, onExit }: Props) {
                       <p style={{ fontSize: '14px', fontWeight: '600', color: C.text }}>{ex.name}</p>
                       <span style={{ flexShrink: 0, padding: '3px 8px', background: C.accentSubtle, borderRadius: '20px', fontSize: '11px', fontWeight: '600', color: C.accent }}>{ex.target}</span>
                     </div>
-                    <p style={{ fontSize: '13px', color: C.muted, lineHeight: '1.5', marginBottom: '14px' }}>{ex.description}</p>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        {exSets.map((s, i) => {
-                          const swipeHandlers = makeSwipeHandlers(ex.id, i)
-                          return (
-                            <button
-                              key={i}
-                              onClick={() => toggleSet(ex.id, i)}
-                              {...swipeHandlers}
-                              style={{
-                                width: '38px',
-                                height: '38px',
-                                borderRadius: '50%',
-                                border: s.done ? 'none' : `1.5px solid rgba(255,255,255,0.15)`,
-                                background: s.flash ? 'rgba(0,200,150,0.6)' : s.done ? C.gradient : 'rgba(255,255,255,0.05)',
-                                color: s.done ? '#fff' : C.dim,
-                                fontSize: '13px',
-                                fontWeight: '600',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                cursor: 'pointer',
-                                transition: s.flash ? 'background 0.05s' : 'all 0.15s',
-                              }}
-                            >
-                              {s.done ? <Check size={16} strokeWidth={2.5} /> : i + 1}
-                            </button>
-                          )
-                        })}
-                      </div>
-                      {showWeight && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <button onClick={() => changeWeight(ex.id, -2.5)} style={{ width: '30px', height: '30px', borderRadius: '50%', background: 'rgba(255,255,255,0.07)', border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: C.muted }}>
-                            <Minus size={13} />
+                    <p style={{ fontSize: '13px', color: C.muted, lineHeight: '1.5', marginBottom: '12px' }}>{ex.description}</p>
+                    {showWeight && (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                        <span style={{ fontSize: '12px', fontWeight: '600', color: C.dim, textTransform: 'uppercase', letterSpacing: '0.4px' }}>Peso</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <button onClick={() => changeWeight(ex.id, -2.5)} style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(255,255,255,0.07)', border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: C.muted }}>
+                            <Minus size={14} />
                           </button>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <span style={{ width: '54px', textAlign: 'center', fontSize: '13px', fontWeight: '600', color: weight ? C.text : C.dim, fontVariantNumeric: 'tabular-nums' }}>
+                            <span style={{ width: '58px', textAlign: 'center', fontSize: '15px', fontWeight: '700', color: weight ? C.text : C.dim, fontVariantNumeric: 'tabular-nums' }}>
                               {weight ? `${weight}kg` : '—'}
                             </span>
                             {isPR && (
                               <span style={{ padding: '1px 5px', background: C.accentSubtle, border: `1px solid ${C.accent}`, borderRadius: '6px', fontSize: '10px', fontWeight: '700', color: C.accent, letterSpacing: '0.3px' }}>PR</span>
                             )}
                           </div>
-                          <button onClick={() => changeWeight(ex.id, 2.5)} style={{ width: '30px', height: '30px', borderRadius: '50%', background: 'rgba(255,255,255,0.07)', border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: C.muted }}>
-                            <Plus size={13} />
+                          <button onClick={() => changeWeight(ex.id, 2.5)} style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(255,255,255,0.07)', border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: C.muted }}>
+                            <Plus size={14} />
                           </button>
                         </div>
-                      )}
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      {exSets.map((s, i) => {
+                        const swipeHandlers = makeSwipeHandlers(ex.id, i)
+                        return (
+                          <button
+                            key={i}
+                            onClick={() => toggleSet(ex.id, i)}
+                            {...swipeHandlers}
+                            style={{
+                              width: '100%',
+                              minHeight: '52px',
+                              borderRadius: '12px',
+                              border: s.done ? 'none' : `1.5px solid rgba(255,255,255,0.1)`,
+                              background: s.flash ? 'rgba(0,200,150,0.5)' : s.done ? 'linear-gradient(135deg,rgba(0,200,150,0.25),rgba(0,160,96,0.25))' : 'rgba(255,255,255,0.04)',
+                              color: s.done ? C.accent : C.dim,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: '0 16px',
+                              cursor: 'pointer',
+                              transition: s.flash ? 'background 0.05s' : 'all 0.2s',
+                            }}
+                          >
+                            <span style={{ fontSize: '14px', fontWeight: '600' }}>
+                              Serie {i + 1}
+                            </span>
+                            <div style={{
+                              width: '28px', height: '28px', borderRadius: '50%',
+                              background: s.done ? C.gradient : 'rgba(255,255,255,0.08)',
+                              border: s.done ? 'none' : `1.5px solid rgba(255,255,255,0.15)`,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              transition: 'all 0.2s',
+                            }}>
+                              {s.done ? <Check size={14} strokeWidth={2.5} color="#fff" /> : null}
+                            </div>
+                          </button>
+                        )
+                      })}
                     </div>
                   </div>
                 )
