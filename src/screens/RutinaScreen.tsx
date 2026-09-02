@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ChevronRight, Plus, Check, Pencil } from 'lucide-react'
 import { PLAN, PLAN_INTRO, type Day } from '../data/plan'
-import { getActivePlan, setActivePlan, getPlans, getHistory, customDayToDay } from '../lib/storage'
+import { getActivePlan, setActivePlan, getPlans, getHistory, customDayToDay, setPlanStartDate } from '../lib/storage'
 import type { Plan } from '../lib/storage'
 import { C } from '../lib/colors'
 
@@ -34,6 +34,7 @@ export default function RutinaScreen({ onOpenDay, onNewPlan, onEditPlan }: Props
 
   function switchPlan(plan: Plan) {
     setActivePlan(plan.id)
+    setPlanStartDate()
     setActive(plan)
     setShowPlans(false)
   }

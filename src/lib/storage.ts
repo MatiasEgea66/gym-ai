@@ -39,6 +39,9 @@ const HISTORY_KEY = 'gymai:history'
 const LAST_WEIGHT_KEY = 'gymai:lastWeight'
 const PLANS_KEY = 'forge:plans'
 const ACTIVE_PLAN_KEY = 'forge:activePlan'
+const PLAN_START_KEY = 'forge:planStartDate'
+const PLAN_CHANGE_WEEKS_KEY = 'forge:planChangeWeeks'
+const PLAN_CHANGE_NOTIFIED_KEY = 'forge:planChangeNotified'
 
 function safeParse<T>(raw: string | null, fallback: T): T {
   if (!raw) return fallback
@@ -66,6 +69,54 @@ export function setActivePlan(id: string): void {
   localStorage.setItem(ACTIVE_PLAN_KEY, id)
 }
 
+export function getPlanStartDate(): string | null {
+  return localStorage.getItem(PLAN_START_KEY)
+}
+
+export function setPlanStartDate(dateISO?: string): void {
+  localStorage.setItem(PLAN_START_KEY, dateISO ?? new Date().toISOString())
+}
+
+export function getPlanChangeWeeks(): number {
+  const raw = localStorage.getItem(PLAN_CHANGE_WEEKS_KEY)
+  return raw ? parseInt(raw, 10) : 4
+}
+
+export function setPlanChangeWeeks(weeks: number): void {
+  localStorage.setItem(PLAN_CHANGE_WEEKS_KEY, String(weeks))
+}
+
+export function initPlanStartDateIfNeeded(planId: string): void {
+  if (getPlanStartDate()) return
+  const sessions = safeParse<Session[]>(localStorage.getItem(HISTORY_KEY), [])
+    .filter(s => (s.planId ?? 'plan-1') === planId)
+  if (sessions.length > 0) {
+    const oldest = sessions.reduce((a, b) => a.dateISO < b.dateISO ? a : b)
+    setPlanStartDate(oldest.dateISO)
+  } else {
+    setPlanStartDate()
+  }
+}
+
+export function shouldChangePlan(planId: string, daysPerWeek: number): boolean {
+  const startRaw = getPlanStartDate()
+  if (!startRaw) return false
+  const weeks = getPlanChangeWeeks()
+  const elapsed = (Date.now() - new Date(startRaw).getTime()) / (7 * 24 * 3600 * 1000)
+  if (elapsed < weeks) return false
+  const sessions = safeParse<Session[]>(localStorage.getItem(HISTORY_KEY), [])
+    .filter(s => (s.planId ?? 'plan-1') === planId).length
+  return sessions >= weeks * daysPerWeek
+}
+
+export function getPlanChangeNotifiedDate(): string | null {
+  return localStorage.getItem(PLAN_CHANGE_NOTIFIED_KEY)
+}
+
+export function setPlanChangeNotifiedDate(date: string): void {
+  localStorage.setItem(PLAN_CHANGE_NOTIFIED_KEY, date)
+}
+
 export function savePlan(plan: Plan): void {
   const plans = getPlans()
   const idx = plans.findIndex((p) => p.id === plan.id)
@@ -83,6 +134,7 @@ export function createPlan(name: string, customDays?: CustomDay[]): Plan {
   }
   savePlan(plan)
   setActivePlan(plan.id)
+  setPlanStartDate()
   return plan
 }
 

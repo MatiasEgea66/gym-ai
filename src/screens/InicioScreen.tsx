@@ -1,6 +1,7 @@
+import { useEffect, useState } from 'react'
 import { Play, Calendar, Zap, ChevronRight } from 'lucide-react'
 import { PLAN, type Day } from '../data/plan'
-import { getStats, getActivePlan, customDayToDay } from '../lib/storage'
+import { getStats, getActivePlan, customDayToDay, initPlanStartDateIfNeeded, shouldChangePlan, getPlanChangeNotifiedDate, setPlanChangeNotifiedDate } from '../lib/storage'
 
 type Props = { onOpenDay: (day: Day) => void; onStart: (day: Day) => void }
 
@@ -8,11 +9,30 @@ const C = { bg: '#0C0E1A', card: '#1B2038', border: 'rgba(255,255,255,0.07)', ac
 
 const DAY_EMOJIS = ['🦵', '💪', '🏋️']
 
+function fireSystemNotification() {
+  if (!('Notification' in window)) return
+  const today = new Date().toISOString().slice(0, 10)
+  if (getPlanChangeNotifiedDate() === today) return
+  const send = () => {
+    new Notification('Forge 💪', {
+      body: '¡Es momento de cambiar tu plan de entrenamiento!',
+      icon: '/icon-192.png',
+    })
+    setPlanChangeNotifiedDate(today)
+  }
+  if (Notification.permission === 'granted') {
+    send()
+  } else if (Notification.permission === 'default') {
+    Notification.requestPermission().then(p => { if (p === 'granted') send() })
+  }
+}
+
 export default function InicioScreen({ onOpenDay, onStart }: Props) {
   const today = new Date()
   const stats = getStats()
   const activePlan = getActivePlan()
   const isCustom = !!activePlan.customDays
+  const [showAlert, setShowAlert] = useState(false)
 
   const dateStr = today.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })
   const dateCapitalized = dateStr.charAt(0).toUpperCase() + dateStr.slice(1)
@@ -21,12 +41,31 @@ export default function InicioScreen({ onOpenDay, onStart }: Props) {
     ? (activePlan.customDays ?? []).map(customDayToDay)
     : PLAN
 
+  useEffect(() => {
+    initPlanStartDateIfNeeded(activePlan.id)
+    if (shouldChangePlan(activePlan.id, planDays.length)) {
+      setShowAlert(true)
+      fireSystemNotification()
+    }
+  }, [activePlan.id])
+
   return (
     <div style={{ maxWidth: '480px', margin: '0 auto', padding: '0 20px 32px' }}>
       <header style={{ paddingTop: '56px', marginBottom: '28px' }}>
         <p style={{ fontSize: '13px', color: C.dim, marginBottom: '4px' }}>{dateCapitalized}</p>
         <h1 style={{ fontSize: '30px', fontWeight: '700', letterSpacing: '-0.8px', color: C.text }}>Hola 👋</h1>
       </header>
+
+      {showAlert && (
+        <div style={{ background: 'rgba(255,184,77,0.10)', border: '1px solid rgba(255,184,77,0.30)', borderRadius: '16px', padding: '14px 16px', marginBottom: '20px', display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+          <span style={{ fontSize: '22px', lineHeight: 1, marginTop: '1px' }}>🔄</span>
+          <div style={{ flex: 1 }}>
+            <p style={{ fontSize: '14px', fontWeight: '700', color: '#FFB84D', marginBottom: '3px' }}>Tiempo de cambiar el plan</p>
+            <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.55)', lineHeight: 1.4 }}>Completaste las semanas de tu programa. ¡Es hora de progresar!</p>
+          </div>
+          <button onClick={() => setShowAlert(false)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.30)', cursor: 'pointer', fontSize: '20px', lineHeight: 1, padding: '0', marginTop: '-2px' }}>×</button>
+        </div>
+      )}
 
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '28px' }}>
