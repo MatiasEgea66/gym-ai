@@ -4,6 +4,7 @@ import {
   hasPasskey, isPasskeySupported, registerPasskey,
   authenticateWithPasskey, storeRefreshToken, getStoredRefreshToken, clearPasskey,
 } from '../lib/webauthn'
+import { mergeAndUpload } from '../lib/sync'
 
 interface Props { onLogin: () => void }
 
@@ -49,8 +50,10 @@ export default function LoginScreen({ onLogin }: Props) {
     setError('')
     try {
       if (mode === 'signup') {
-        const { error: err } = await supabase.auth.signUp({ email, password })
+        const { data: signupData, error: err } = await supabase.auth.signUp({ email, password })
         if (err) { setError(err.message); return }
+        // Upload existing local progress to the new account
+        if (signupData.user) await mergeAndUpload(signupData.user.id)
         setError('Revisá tu email para confirmar la cuenta')
         return
       }
@@ -58,6 +61,9 @@ export default function LoginScreen({ onLogin }: Props) {
       if (err) { setError(err.message); return }
       const session = data.session
       if (!session) { setError('No se pudo iniciar sesión'); return }
+      // Download cloud data (or merge if local exists)
+      await mergeAndUpload(data.user.id)
+      localStorage.setItem('gymai:loggedIn', '1')
       if (isPasskeySupported() && !hasPasskey()) {
         setPendingUser({ id: data.user.id, email: data.user.email ?? email, refresh: session.refresh_token })
         setShowPasskeyPrompt(true)

@@ -4,6 +4,7 @@ import { getStats, getHistory } from '../lib/storage'
 import { C } from '../lib/colors'
 import { supabase } from '../lib/supabase'
 import { clearPasskey, hasPasskey, isPasskeySupported, registerPasskey, storeRefreshToken } from '../lib/webauthn'
+import { uploadProgress } from '../lib/sync'
 
 type Props = { onLogout: () => void }
 
@@ -15,12 +16,25 @@ export default function PerfilScreen({ onLogout }: Props) {
   const [passkeyActive, setPasskeyActive] = useState(hasPasskey)
   const [passkeyLoading, setPasskeyLoading] = useState(false)
   const [email, setEmail] = useState('')
+  const [syncing, setSyncing] = useState(false)
+  const [syncMsg, setSyncMsg] = useState('')
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       if (data.user?.email) setEmail(data.user.email)
     })
   }, [])
+
+  async function handleSync() {
+    setSyncing(true)
+    setSyncMsg('')
+    const { data } = await supabase.auth.getUser()
+    if (!data.user) { setSyncMsg('Necesitás una cuenta para sincronizar'); setSyncing(false); return }
+    await uploadProgress(data.user.id)
+    setSyncMsg('¡Progreso guardado en la nube!')
+    setSyncing(false)
+    setTimeout(() => setSyncMsg(''), 3000)
+  }
 
   async function handleTogglePasskey() {
     if (passkeyActive) {
@@ -126,6 +140,20 @@ export default function PerfilScreen({ onLogout }: Props) {
         {/* Cuenta */}
         <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: '20px', overflow: 'hidden' }}>
           <p style={{ fontSize: '11px', fontWeight: '600', color: C.dim, letterSpacing: '0.5px', textTransform: 'uppercase', padding: '16px 18px 8px' }}>Cuenta</p>
+          <button
+            onClick={handleSync}
+            disabled={syncing}
+            style={{ display: 'flex', alignItems: 'center', gap: '14px', width: '100%', padding: '14px 18px', background: 'none', border: 'none', borderTop: `1px solid ${C.border}`, cursor: 'pointer', textAlign: 'left' }}
+          >
+            <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(0,200,150,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '18px' }}>
+              ☁️
+            </div>
+            <div style={{ flex: 1 }}>
+              <p style={{ fontSize: '14px', fontWeight: '600', color: C.text }}>{syncing ? 'Guardando…' : 'Guardar progreso en la nube'}</p>
+              {syncMsg && <p style={{ fontSize: '12px', color: C.accent, marginTop: '2px' }}>{syncMsg}</p>}
+            </div>
+            <ChevronRight size={16} color={C.dim} />
+          </button>
           <button
             onClick={handleLogout}
             style={{ display: 'flex', alignItems: 'center', gap: '14px', width: '100%', padding: '14px 18px', background: 'none', border: 'none', borderTop: `1px solid ${C.border}`, cursor: 'pointer', textAlign: 'left' }}
