@@ -55,9 +55,9 @@ export async function authenticateWithPasskey(): Promise<boolean> {
   try {
     const assertion = await navigator.credentials.get({
       publicKey: {
-        challenge: crypto.getRandomValues(new Uint8Array(32)),
+        challenge: crypto.getRandomValues(new Uint8Array(32)).buffer as ArrayBuffer,
         rpId: window.location.hostname,
-        allowCredentials: [{ id: b64decode(stored), type: 'public-key' }],
+        allowCredentials: [{ id: b64decode(stored).buffer as ArrayBuffer, type: 'public-key' }],
         userVerification: 'required',
         timeout: 60000,
       },

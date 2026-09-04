@@ -13,7 +13,6 @@ import type { Day } from './data/plan'
 import type { Tab } from './types'
 import type { Plan } from './lib/storage'
 import { supabase } from './lib/supabase'
-import { clearPasskey } from './lib/webauthn'
 
 type Screen =
   | { type: 'tabs' }
