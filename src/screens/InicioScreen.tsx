@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Play, Calendar, Zap, ChevronRight } from 'lucide-react'
 import { PLAN, type Day } from '../data/plan'
-import { getStats, getActivePlan, customDayToDay, initPlanStartDateIfNeeded, shouldChangePlan, shouldWarnPlanChange, getPlanChangeNotifiedDate, setPlanChangeNotifiedDate } from '../lib/storage'
+import { getStats, getActivePlan, customDayToDay, initPlanStartDateIfNeeded, shouldChangePlan, getPlanChangeWarning, getPlanChangeNotifiedDate, setPlanChangeNotifiedDate } from '../lib/storage'
 
 type Props = { onOpenDay: (day: Day) => void; onStart: (day: Day) => void }
 
@@ -33,7 +33,7 @@ export default function InicioScreen({ onOpenDay, onStart }: Props) {
   const activePlan = getActivePlan()
   const isCustom = !!activePlan.customDays
   const [showAlert, setShowAlert] = useState(false)
-  const [showWarning, setShowWarning] = useState(false)
+  const [warning, setWarning] = useState<{ sessionsLeft: number; daysLeft: number } | null>(null)
 
   const dateStr = today.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })
   const dateCapitalized = dateStr.charAt(0).toUpperCase() + dateStr.slice(1)
@@ -47,8 +47,9 @@ export default function InicioScreen({ onOpenDay, onStart }: Props) {
     if (shouldChangePlan(activePlan.id, planDays.length)) {
       setShowAlert(true)
       fireSystemNotification()
-    } else if (shouldWarnPlanChange(activePlan.id, planDays.length)) {
-      setShowWarning(true)
+    } else {
+      const w = getPlanChangeWarning(activePlan.id, planDays.length)
+      if (w) setWarning(w)
     }
   }, [activePlan.id])
 
@@ -70,14 +71,16 @@ export default function InicioScreen({ onOpenDay, onStart }: Props) {
         </div>
       )}
 
-      {showWarning && (
+      {warning && (
         <div style={{ background: 'rgba(91,115,255,0.10)', border: '1px solid rgba(91,115,255,0.30)', borderRadius: '16px', padding: '14px 16px', marginBottom: '20px', display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
           <span style={{ fontSize: '22px', lineHeight: 1, marginTop: '1px' }}>⏳</span>
           <div style={{ flex: 1 }}>
             <p style={{ fontSize: '14px', fontWeight: '700', color: '#8B9FFF', marginBottom: '3px' }}>Pronto vas a necesitar cambiar el plan</p>
-            <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.55)', lineHeight: 1.4 }}>Te quedan menos de una semana o 2 entrenamientos. Pensá en el próximo programa.</p>
+            <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.55)', lineHeight: 1.4 }}>
+              Te quedan <strong style={{ color: '#fff' }}>{warning.sessionsLeft} {warning.sessionsLeft === 1 ? 'entrenamiento' : 'entrenamientos'}</strong> y <strong style={{ color: '#fff' }}>{warning.daysLeft} {warning.daysLeft === 1 ? 'día' : 'días'}</strong>. Pensá en el próximo programa.
+            </p>
           </div>
-          <button onClick={() => setShowWarning(false)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.30)', cursor: 'pointer', fontSize: '20px', lineHeight: 1, padding: '0', marginTop: '-2px' }}>×</button>
+          <button onClick={() => setWarning(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.30)', cursor: 'pointer', fontSize: '20px', lineHeight: 1, padding: '0', marginTop: '-2px' }}>×</button>
         </div>
       )}
 

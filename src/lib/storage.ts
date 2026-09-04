@@ -109,17 +109,20 @@ export function shouldChangePlan(planId: string, daysPerWeek: number): boolean {
   return sessions >= weeks * daysPerWeek
 }
 
-export function shouldWarnPlanChange(planId: string, daysPerWeek: number): boolean {
-  if (shouldChangePlan(planId, daysPerWeek)) return false
+export function getPlanChangeWarning(planId: string, daysPerWeek: number): { warn: boolean; sessionsLeft: number; daysLeft: number } | null {
+  if (shouldChangePlan(planId, daysPerWeek)) return null
   const startRaw = getPlanStartDate()
-  if (!startRaw) return false
+  if (!startRaw) return null
   const weeks = getPlanChangeWeeks()
   const elapsed = (Date.now() - new Date(startRaw).getTime()) / (7 * 24 * 3600 * 1000)
   const sessions = safeParse<Session[]>(localStorage.getItem(HISTORY_KEY), [])
     .filter(s => (s.planId ?? 'plan-1') === planId).length
-  const remaining = weeks * daysPerWeek - sessions
-  const weeksLeft = weeks - elapsed
-  return weeksLeft < 1 || remaining <= 2
+  const sessionsLeft = Math.max(0, weeks * daysPerWeek - sessions)
+  const daysLeft = Math.max(0, Math.ceil((weeks - elapsed) * 7))
+  if (daysLeft < 7 || sessionsLeft <= 2) {
+    return { warn: true, sessionsLeft, daysLeft }
+  }
+  return null
 }
 
 export function getPlanChangeNotifiedDate(): string | null {
