@@ -168,10 +168,18 @@ export default function LoginScreen({ onLogin }: Props) {
 
           <button
             type="button" onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError('') }}
-            style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.38)', fontSize: '14px', cursor: 'pointer', textAlign: 'center' }}
+            style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.38)', fontSize: '14px', cursor: 'pointer', textAlign: 'center', marginBottom: '8px' }}
           >
             {mode === 'login' ? '¿Eres nuevo? ' : '¿Ya tienes cuenta? '}
             <span style={{ color: ACCENT, fontWeight: '600' }}>{mode === 'login' ? 'Crear cuenta' : 'Iniciar sesión'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => { localStorage.setItem('gymai:loggedIn', '1'); onLogin() }}
+            style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.22)', fontSize: '13px', cursor: 'pointer', textAlign: 'center' }}
+          >
+            Continuar sin cuenta
           </button>
         </form>
       </div>
