@@ -26,11 +26,13 @@ function App() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      setIsLoggedIn(!!data.session)
+      const hasSupabaseSession = !!data.session
+      const hasLegacySession = !!localStorage.getItem('gymai:loggedIn')
+      setIsLoggedIn(hasSupabaseSession || hasLegacySession)
       setAuthReady(true)
     })
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsLoggedIn(!!session)
+      if (session) setIsLoggedIn(true)
     })
     return () => subscription.unsubscribe()
   }, [])
