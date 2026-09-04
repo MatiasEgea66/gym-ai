@@ -98,30 +98,22 @@ export function initPlanStartDateIfNeeded(planId: string): void {
   }
 }
 
-export function shouldChangePlan(planId: string, daysPerWeek: number): boolean {
-  const startRaw = getPlanStartDate()
-  if (!startRaw) return false
-  const weeks = getPlanChangeWeeks()
-  const elapsed = (Date.now() - new Date(startRaw).getTime()) / (7 * 24 * 3600 * 1000)
-  if (elapsed < weeks) return false
-  const sessions = safeParse<Session[]>(localStorage.getItem(HISTORY_KEY), [])
-    .filter(s => (s.planId ?? 'plan-1') === planId).length
-  return sessions >= weeks * daysPerWeek
+export function getPlanTotalSessions(daysPerWeek: number): number {
+  return Math.round(daysPerWeek * 4.5)
 }
 
-export function getPlanChangeWarning(planId: string, daysPerWeek: number): { warn: boolean; sessionsLeft: number; daysLeft: number } | null {
-  if (shouldChangePlan(planId, daysPerWeek)) return null
-  const startRaw = getPlanStartDate()
-  if (!startRaw) return null
-  const weeks = getPlanChangeWeeks()
-  const elapsed = (Date.now() - new Date(startRaw).getTime()) / (7 * 24 * 3600 * 1000)
+export function shouldChangePlan(planId: string, daysPerWeek: number): boolean {
   const sessions = safeParse<Session[]>(localStorage.getItem(HISTORY_KEY), [])
     .filter(s => (s.planId ?? 'plan-1') === planId).length
-  const sessionsLeft = Math.max(0, weeks * daysPerWeek - sessions)
-  const daysLeft = Math.max(0, Math.ceil((weeks - elapsed) * 7))
-  if (daysLeft < 7 || sessionsLeft <= 2) {
-    return { warn: true, sessionsLeft, daysLeft }
-  }
+  return sessions >= getPlanTotalSessions(daysPerWeek)
+}
+
+export function getPlanChangeWarning(planId: string, daysPerWeek: number): { sessionsLeft: number } | null {
+  if (shouldChangePlan(planId, daysPerWeek)) return null
+  const sessions = safeParse<Session[]>(localStorage.getItem(HISTORY_KEY), [])
+    .filter(s => (s.planId ?? 'plan-1') === planId).length
+  const sessionsLeft = getPlanTotalSessions(daysPerWeek) - sessions
+  if (sessionsLeft <= 2) return { sessionsLeft }
   return null
 }
 

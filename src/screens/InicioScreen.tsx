@@ -33,7 +33,7 @@ export default function InicioScreen({ onOpenDay, onStart }: Props) {
   const activePlan = getActivePlan()
   const isCustom = !!activePlan.customDays
   const [showAlert, setShowAlert] = useState(false)
-  const [warning, setWarning] = useState<{ sessionsLeft: number; daysLeft: number } | null>(null)
+  const [warning, setWarning] = useState<{ sessionsLeft: number } | null>(null)
 
   const dateStr = today.toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })
   const dateCapitalized = dateStr.charAt(0).toUpperCase() + dateStr.slice(1)
@@ -77,7 +77,7 @@ export default function InicioScreen({ onOpenDay, onStart }: Props) {
           <div style={{ flex: 1 }}>
             <p style={{ fontSize: '14px', fontWeight: '700', color: '#8B9FFF', marginBottom: '3px' }}>Pronto vas a necesitar cambiar el plan</p>
             <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.55)', lineHeight: 1.4 }}>
-              Te quedan <strong style={{ color: '#fff' }}>{warning.sessionsLeft} {warning.sessionsLeft === 1 ? 'entrenamiento' : 'entrenamientos'}</strong> y <strong style={{ color: '#fff' }}>{warning.daysLeft} {warning.daysLeft === 1 ? 'día' : 'días'}</strong>. Pensá en el próximo programa.
+              Te {warning.sessionsLeft === 1 ? 'queda' : 'quedan'} <strong style={{ color: '#fff' }}>{warning.sessionsLeft} {warning.sessionsLeft === 1 ? 'entrenamiento' : 'entrenamientos'}</strong> para terminar el ciclo. Pensá en el próximo programa.
             </p>
           </div>
           <button onClick={() => setWarning(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.30)', cursor: 'pointer', fontSize: '20px', lineHeight: 1, padding: '0', marginTop: '-2px' }}>×</button>
