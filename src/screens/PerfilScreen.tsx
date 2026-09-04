@@ -3,7 +3,7 @@ import { LogOut, Dumbbell, BarChart2, Calendar } from 'lucide-react'
 import { getStats, getHistory, getPlanChangeWeeks, setPlanChangeWeeks } from '../lib/storage'
 import { C } from '../lib/colors'
 import { supabase } from '../lib/supabase'
-import { clearPasskey } from '../lib/webauthn'
+import { clearPasskey, hasPasskey, isPasskeySupported, registerPasskey } from '../lib/webauthn'
 
 type Props = { onLogout: () => void }
 
@@ -12,10 +12,34 @@ export default function PerfilScreen({ onLogout }: Props) {
   const history = getHistory()
   const totalMin = history.reduce((s, h) => s + Math.floor(h.durationSec / 60), 0)
   const [weeks, setWeeks] = useState(getPlanChangeWeeks)
+  const [passkeyActive, setPasskeyActive] = useState(hasPasskey)
+  const [passkeyLoading, setPasskeyLoading] = useState(false)
 
   function handleWeeksChange(w: number) {
     setPlanChangeWeeks(w)
     setWeeks(w)
+  }
+
+  async function handleTogglePasskey() {
+    if (passkeyActive) {
+      clearPasskey()
+      setPasskeyActive(false)
+      return
+    }
+    setPasskeyLoading(true)
+    const { data } = await supabase.auth.getUser()
+    const user = data.user
+    if (!user) { setPasskeyLoading(false); return }
+    const ok = await registerPasskey(user.id, user.email ?? '')
+    if (ok) {
+      const { data: sd } = await supabase.auth.getSession()
+      if (sd.session?.refresh_token) {
+        const { storeRefreshToken } = await import('../lib/webauthn')
+        storeRefreshToken(sd.session.refresh_token)
+      }
+      setPasskeyActive(true)
+    }
+    setPasskeyLoading(false)
   }
 
   async function handleLogout() {
@@ -69,6 +93,18 @@ export default function PerfilScreen({ onLogout }: Props) {
           ))}
         </div>
       </div>
+
+      {/* Face ID */}
+      {isPasskeySupported() && (
+        <button
+          onClick={handleTogglePasskey}
+          disabled={passkeyLoading}
+          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', width: '100%', padding: '15px', background: passkeyActive ? 'rgba(91,115,255,0.10)' : C.card, border: `1px solid ${passkeyActive ? 'rgba(91,115,255,0.30)' : C.border}`, borderRadius: '14px', color: passkeyActive ? '#8B9FFF' : C.muted, fontSize: '15px', fontWeight: '600', cursor: 'pointer', marginBottom: '10px' }}
+        >
+          <span style={{ fontSize: '18px' }}>🔐</span>
+          {passkeyLoading ? 'Activando…' : passkeyActive ? 'Face ID activado — toca para desactivar' : 'Activar Face ID'}
+        </button>
+      )}
 
       {/* Logout */}
       <button
