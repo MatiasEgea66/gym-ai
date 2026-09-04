@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import BottomNav from './components/BottomNav'
 import InstallPrompt from './components/InstallPrompt'
 import InicioScreen from './screens/InicioScreen'
@@ -12,6 +12,8 @@ import PlanEditorScreen from './screens/PlanEditorScreen'
 import type { Day } from './data/plan'
 import type { Tab } from './types'
 import type { Plan } from './lib/storage'
+import { supabase } from './lib/supabase'
+import { clearPasskey } from './lib/webauthn'
 
 type Screen =
   | { type: 'tabs' }
@@ -20,7 +22,19 @@ type Screen =
   | { type: 'planEditor'; plan?: Plan }
 
 function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(() => !!localStorage.getItem('gymai:loggedIn'))
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [authReady, setAuthReady] = useState(false)
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setIsLoggedIn(!!data.session)
+      setAuthReady(true)
+    })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsLoggedIn(!!session)
+    })
+    return () => subscription.unsubscribe()
+  }, [])
   const [tab, setTab] = useState<Tab>('inicio')
   const [screen, setScreen] = useState<Screen>({ type: 'tabs' })
   const [refreshKey, setRefreshKey] = useState(0)
@@ -43,6 +57,7 @@ function App() {
     if (dx > 0 && currentIndex > 0) setTab(TABS[currentIndex - 1])
   }
 
+  if (!authReady) return <div style={{ minHeight: '100dvh', background: '#0C0E1A' }} />
   if (!isLoggedIn) return <LoginScreen onLogin={() => setIsLoggedIn(true)} />
 
   if (screen.type === 'session') {

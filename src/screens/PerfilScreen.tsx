@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { LogOut, Dumbbell, BarChart2, Calendar } from 'lucide-react'
 import { getStats, getHistory, getPlanChangeWeeks, setPlanChangeWeeks } from '../lib/storage'
 import { C } from '../lib/colors'
+import { supabase } from '../lib/supabase'
+import { clearPasskey } from '../lib/webauthn'
 
 type Props = { onLogout: () => void }
 
@@ -16,8 +18,9 @@ export default function PerfilScreen({ onLogout }: Props) {
     setWeeks(w)
   }
 
-  function handleLogout() {
-    localStorage.removeItem('gymai:loggedIn')
+  async function handleLogout() {
+    clearPasskey()
+    await supabase.auth.signOut()
     onLogout()
   }
 
