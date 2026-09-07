@@ -1,9 +1,10 @@
-import { useState } from 'react'
-import { ChevronRight, Plus, Check, Pencil } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { ChevronRight, Plus, Check, Pencil, Upload } from 'lucide-react'
 import { PLAN, PLAN_INTRO, type Day } from '../data/plan'
-import { getActivePlan, setActivePlan, getPlans, getHistory, customDayToDay, setPlanStartDate } from '../lib/storage'
+import { getActivePlan, setActivePlan, getPlans, getHistory, customDayToDay, setPlanStartDate, createPlan } from '../lib/storage'
 import type { Plan } from '../lib/storage'
 import { C } from '../lib/colors'
+import { parsePlanMarkdown } from '../lib/parseMd'
 
 type Props = {
   onOpenDay: (day: Day) => void
@@ -24,6 +25,7 @@ const DAY_GRADIENTS = [
 export default function RutinaScreen({ onOpenDay, onNewPlan, onEditPlan }: Props) {
   const [activePlan, setActive] = useState(getActivePlan)
   const [showPlans, setShowPlans] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const plans = getPlans()
   const history = getHistory()
   const isCustom = !!activePlan.customDays
@@ -41,6 +43,20 @@ export default function RutinaScreen({ onOpenDay, onNewPlan, onEditPlan }: Props
 
   function sessionCount(planId: string) {
     return history.filter((s) => (s.planId ?? 'plan-1') === planId).length
+  }
+
+  function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string
+      const { name, customDays } = parsePlanMarkdown(text)
+      createPlan(name, customDays)
+      setActive(getActivePlan())
+    }
+    reader.readAsText(file)
+    e.target.value = ''
   }
 
   return (
@@ -70,6 +86,10 @@ export default function RutinaScreen({ onOpenDay, onNewPlan, onEditPlan }: Props
                 Cambiar
               </button>
             )}
+            <input ref={fileInputRef} type="file" accept=".md,.txt" style={{ display: 'none' }} onChange={handleImportFile} />
+            <button onClick={() => fileInputRef.current?.click()} style={{ width: '32px', height: '32px', background: 'rgba(255,255,255,0.07)', border: `1px solid ${C.border}`, borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }} title="Importar plan (.md)">
+              <Upload size={14} color={C.muted} />
+            </button>
             <button onClick={onNewPlan} style={{ width: '32px', height: '32px', background: C.accentSubtle, border: 'none', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
               <Plus size={16} color={C.accent} />
             </button>

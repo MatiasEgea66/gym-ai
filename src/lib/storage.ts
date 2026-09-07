@@ -21,11 +21,19 @@ export type CustomExercise = {
   bodyweight?: boolean
 }
 
+export type CustomBlock = {
+  id: string
+  title: string
+  rounds?: number
+  exercises: CustomExercise[]
+}
+
 export type CustomDay = {
   id: string
   label: string
   title: string
   exercises: CustomExercise[]
+  blocks?: CustomBlock[]
 }
 
 export type Plan = {
@@ -148,6 +156,26 @@ export function createPlan(name: string, customDays?: CustomDay[]): Plan {
 
 /** Convert a CustomDay to the Day format used by session screens */
 export function customDayToDay(day: CustomDay): Day {
+  if (day.blocks && day.blocks.length > 0) {
+    return {
+      id: day.id,
+      weekday: 0,
+      dayLabel: day.label,
+      title: day.title,
+      blocks: day.blocks.map((b) => ({
+        id: b.id,
+        title: b.title,
+        rounds: b.rounds,
+        exercises: b.exercises.map((ex) => ({
+          id: ex.id,
+          name: ex.name,
+          target: ex.target,
+          description: ex.description,
+          bodyweight: ex.bodyweight,
+        })),
+      })),
+    }
+  }
   const exercises: Exercise[] = day.exercises.map((ex) => ({
     id: ex.id,
     name: ex.name,
