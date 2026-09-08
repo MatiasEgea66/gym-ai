@@ -20,6 +20,7 @@ export default function LoginScreen({ onLogin }: Props) {
   const [mode, setMode] = useState<'login' | 'signup'>('login')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [showPwd, setShowPwd] = useState(false)
   const [showPasskeyPrompt, setShowPasskeyPrompt] = useState(false)
   const [pendingUser, setPendingUser] = useState<{ id: string; email: string; refresh: string } | null>(null)
   const [canPasskey] = useState(() => hasPasskey() && isPasskeySupported())
@@ -163,11 +164,19 @@ export default function LoginScreen({ onLogin }: Props) {
               autoComplete="email" required
               style={{ display: 'block', width: '100%', padding: '16px 18px', background: 'transparent', border: 'none', borderBottom: `1px solid ${BORDER}`, color: '#fff', fontSize: '15px', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
             />
-            <input
-              type="password" placeholder="Contraseña" value={password} onChange={e => setPassword(e.target.value)}
-              autoComplete={mode === 'login' ? 'current-password' : 'new-password'} required
-              style={{ display: 'block', width: '100%', padding: '16px 18px', background: 'transparent', border: 'none', color: '#fff', fontSize: '15px', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showPwd ? 'text' : 'password'} placeholder="Contraseña" value={password} onChange={e => setPassword(e.target.value)}
+                autoComplete={mode === 'login' ? 'current-password' : 'new-password'} required
+                style={{ display: 'block', width: '100%', padding: '16px 48px 16px 18px', background: 'transparent', border: 'none', color: '#fff', fontSize: '15px', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
+              />
+              <button
+                type="button" onClick={() => setShowPwd(v => !v)}
+                style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.35)', fontSize: '13px', fontWeight: '600', padding: '4px' }}
+              >
+                {showPwd ? 'Ocultar' : 'Ver'}
+              </button>
+            </div>
           </div>
 
           {error && (
