@@ -24,14 +24,20 @@ export default function LoginScreen({ onLogin }: Props) {
   const [showPasskeyPrompt, setShowPasskeyPrompt] = useState(false)
   const [pendingUser, setPendingUser] = useState<{ id: string; email: string; refresh: string } | null>(null)
   const [canPasskey] = useState(() => hasPasskey() && isPasskeySupported())
+  const [passkeyFailed, setPasskeyFailed] = useState(false)
   const autoTriggered = useRef(false)
 
   async function handleFaceId() {
     setLoading(true)
     setError('')
+    setPasskeyFailed(false)
     try {
       const ok = await authenticateWithPasskey()
-      if (!ok) { setError('Face ID no reconocido'); return }
+      if (!ok) {
+        setPasskeyFailed(true)
+        setError('Face ID no disponible en este navegador')
+        return
+      }
       // If session is still valid, just let in
       const { data: sessionData } = await supabase.auth.getSession()
       if (sessionData.session) { onLogin(); return }
@@ -44,6 +50,12 @@ export default function LoginScreen({ onLogin }: Props) {
     } finally {
       setLoading(false)
     }
+  }
+
+  function handleResetPasskey() {
+    clearPasskey()
+    setPasskeyFailed(false)
+    setError('')
   }
 
   useEffect(() => {
@@ -139,7 +151,7 @@ export default function LoginScreen({ onLogin }: Props) {
       </div>
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '0 24px', maxWidth: '420px', width: '100%', margin: '0 auto' }}>
-        {canPasskey && (
+        {canPasskey && !passkeyFailed && (
           <>
             <button
               onClick={handleFaceId}
@@ -155,6 +167,15 @@ export default function LoginScreen({ onLogin }: Props) {
               <div style={{ flex: 1, height: '1px', background: BORDER }} />
             </div>
           </>
+        )}
+        {passkeyFailed && (
+          <div style={{ background: 'rgba(255,92,125,0.1)', border: '1px solid rgba(255,92,125,0.25)', borderRadius: '14px', padding: '14px 16px', marginBottom: '16px' }}>
+            <p style={{ fontSize: '13px', color: '#FF5C7D', fontWeight: '600', marginBottom: '4px' }}>Face ID no disponible en este navegador</p>
+            <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.45)', marginBottom: '10px', lineHeight: 1.4 }}>Iniciá sesión con contraseña y volvé a activar Face ID desde tu perfil.</p>
+            <button onClick={handleResetPasskey} style={{ background: 'none', border: 'none', color: '#FF5C7D', fontSize: '12px', fontWeight: '600', cursor: 'pointer', padding: 0 }}>
+              Limpiar Face ID guardado
+            </button>
+          </div>
         )}
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column' }}>
