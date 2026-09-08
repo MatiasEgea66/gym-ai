@@ -13,6 +13,7 @@ import type { Day } from './data/plan'
 import type { Tab } from './types'
 import type { Plan } from './lib/storage'
 import { supabase } from './lib/supabase'
+import { hasPasskey, isPasskeySupported } from './lib/webauthn'
 
 type Screen =
   | { type: 'tabs' }
@@ -28,7 +29,10 @@ function App() {
     supabase.auth.getSession().then(({ data }) => {
       const hasSupabaseSession = !!data.session
       const hasLegacySession = !!localStorage.getItem('gymai:loggedIn')
-      setIsLoggedIn(hasSupabaseSession || hasLegacySession)
+      const isAuthenticated = hasSupabaseSession || hasLegacySession
+      // Always require Face ID on open if passkey is registered
+      const needsFaceId = isAuthenticated && hasPasskey() && isPasskeySupported()
+      setIsLoggedIn(needsFaceId ? false : isAuthenticated)
       setAuthReady(true)
     })
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {

@@ -31,6 +31,10 @@ export default function LoginScreen({ onLogin }: Props) {
     try {
       const ok = await authenticateWithPasskey()
       if (!ok) { setError('Face ID no reconocido'); return }
+      // If session is still valid, just let in
+      const { data: sessionData } = await supabase.auth.getSession()
+      if (sessionData.session) { onLogin(); return }
+      // Session expired — try stored refresh token
       const refresh = getStoredRefreshToken()
       if (!refresh) { clearPasskey(); setError('Sesión expirada, iniciá sesión con contraseña'); return }
       const { error: err } = await supabase.auth.refreshSession({ refresh_token: refresh })
