@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { LogOut, Flame, Dumbbell, Clock, ChevronRight, Shield, ShieldCheck } from 'lucide-react'
-import { getStats, getHistory } from '../lib/storage'
+import { LogOut, Flame, Dumbbell, Clock, ChevronRight, Shield, ShieldCheck, Trophy } from 'lucide-react'
+import { getStats, getHistory, getTotalVolume, getMaxWeightPerExercise, getTrainingStreak } from '../lib/storage'
 import { C } from '../lib/colors'
 import { supabase } from '../lib/supabase'
 import { clearPasskey, hasPasskey, isPasskeySupported, registerPasskey, storeRefreshToken } from '../lib/webauthn'
@@ -13,6 +13,9 @@ export default function PerfilScreen({ onLogout }: Props) {
   const history = getHistory()
   const totalMin = history.reduce((s, h) => s + Math.floor(h.durationSec / 60), 0)
   const totalHours = Math.floor(totalMin / 60)
+  const totalVolume = getTotalVolume()
+  const prs = getMaxWeightPerExercise()
+  const trainingStreak = getTrainingStreak()
   const [passkeyActive, setPasskeyActive] = useState(hasPasskey)
   const [passkeyLoading, setPasskeyLoading] = useState(false)
   const [email, setEmail] = useState('')
@@ -63,6 +66,7 @@ export default function PerfilScreen({ onLogout }: Props) {
 
   const initials = email ? email[0].toUpperCase() : '?'
   const streak = stats.thisWeek
+  const totalVolumeDisplay = totalVolume >= 1000 ? `${(totalVolume / 1000).toFixed(1)}k` : String(Math.round(totalVolume))
 
   return (
     <div style={{ maxWidth: '480px', margin: '0 auto', background: C.bg, minHeight: '100dvh', fontFamily: '-apple-system, BlinkMacSystemFont, system-ui, sans-serif' }}>
@@ -90,21 +94,56 @@ export default function PerfilScreen({ onLogout }: Props) {
       <div style={{ padding: '0 20px 100px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
 
         {/* Stats */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
           {[
-            { icon: Dumbbell, label: 'Sesiones', value: stats.totalSessions, color: '#5B73FF' },
-            { icon: Flame, label: 'Esta semana', value: stats.thisWeek, color: '#FFB84D', fill: true },
-            { icon: Clock, label: 'Horas', value: totalHours, color: '#00C896' },
-          ].map(({ icon: Icon, label, value, color, fill }) => (
-            <div key={label} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: '18px', padding: '16px 10px', textAlign: 'center' }}>
-              <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: `${color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 10px' }}>
-                <Icon size={17} color={color} fill={fill ? color : 'none'} />
+            { icon: Dumbbell, label: 'Sesiones', value: String(stats.totalSessions), color: '#5B73FF', bg: 'rgba(91,115,255,0.15)' },
+            { icon: Flame, label: 'Esta semana', value: String(stats.thisWeek), color: '#FFB84D', bg: 'rgba(255,184,77,0.15)' },
+            { icon: Clock, label: 'Horas totales', value: String(totalHours), color: '#00C896', bg: 'rgba(0,200,150,0.15)' },
+            { icon: Trophy, label: 'Kg totales', value: totalVolumeDisplay, color: '#FF6B9D', bg: 'rgba(255,107,157,0.15)' },
+          ].map(({ icon: Icon, label, value, color, bg }) => (
+            <div key={label} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: '18px', padding: '16px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Icon size={19} color={color} />
               </div>
-              <p style={{ fontSize: '24px', fontWeight: '800', color: C.text, letterSpacing: '-0.8px', lineHeight: 1 }}>{value}</p>
-              <p style={{ fontSize: '10px', fontWeight: '500', color: C.dim, marginTop: '4px', textTransform: 'uppercase', letterSpacing: '0.4px' }}>{label}</p>
+              <div>
+                <p style={{ fontSize: '22px', fontWeight: '800', color: C.text, letterSpacing: '-0.8px', lineHeight: 1 }}>{value}</p>
+                <p style={{ fontSize: '10px', fontWeight: '500', color: C.dim, marginTop: '3px', textTransform: 'uppercase', letterSpacing: '0.4px' }}>{label}</p>
+              </div>
             </div>
           ))}
         </div>
+
+        {/* Records personales */}
+        {prs.length > 0 && (
+          <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: '20px', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '16px 18px 8px' }}>
+              <Trophy size={13} color={C.accent} />
+              <p style={{ fontSize: '11px', fontWeight: '600', color: C.dim, letterSpacing: '0.5px', textTransform: 'uppercase' }}>Records personales</p>
+            </div>
+            {prs.map((pr, i) => (
+              <div key={pr.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 18px', borderTop: `1px solid ${C.border}` }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '13px', color: C.dim, fontWeight: '600', width: '16px', textAlign: 'right' }}>{i + 1}</span>
+                  <span style={{ fontSize: '13px', color: C.text }}>{pr.name}</span>
+                </div>
+                <span style={{ fontSize: '14px', fontWeight: '700', color: C.accent }}>{pr.weightKg} kg</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Racha semanal */}
+        {trainingStreak > 0 && (
+          <div style={{ background: 'rgba(255,107,157,0.08)', border: '1px solid rgba(255,107,157,0.2)', borderRadius: '16px', padding: '14px 18px', display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(255,107,157,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Flame size={20} color="#FF6B9D" fill="#FF6B9D" />
+            </div>
+            <div>
+              <p style={{ fontSize: '18px', fontWeight: '800', color: '#FF6B9D', letterSpacing: '-0.5px', lineHeight: 1 }}>{trainingStreak} {trainingStreak === 1 ? 'semana' : 'semanas'} seguidas</p>
+              <p style={{ fontSize: '12px', color: C.dim, marginTop: '2px' }}>Racha de entrenamiento activa</p>
+            </div>
+          </div>
+        )}
 
         {/* Seguridad */}
         <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: '20px', overflow: 'hidden' }}>

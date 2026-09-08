@@ -124,7 +124,7 @@ export default function RutinaScreen({ onOpenDay, onNewPlan, onEditPlan }: Props
             <div style={{ flex: 1 }}>
               <p style={{ fontSize: '11px', fontWeight: '600', letterSpacing: '0.5px', textTransform: 'uppercase', color: C.accent, marginBottom: '3px' }}>{day.dayLabel}</p>
               <p style={{ fontSize: '15px', fontWeight: '600', color: C.text, letterSpacing: '-0.3px', marginBottom: '2px' }}>{day.title}</p>
-              <p style={{ fontSize: '12px', color: C.dim }}>{day.blocks.length} bloques</p>
+              {(() => { const exCount = day.blocks.reduce((s, b) => s + b.exercises.length, 0); return <p style={{ fontSize: '12px', color: C.dim }}>{exCount} ejercicios · {day.blocks.length} bloques</p> })()}
             </div>
             <ChevronRight size={18} color={C.dim} />
           </button>

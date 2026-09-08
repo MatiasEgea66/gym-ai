@@ -245,3 +245,89 @@ export function getStats() {
   const thisWeek = history.filter((s) => new Date(s.dateISO) >= startOfWeek).length
   return { totalSessions: history.length, thisWeek, lastSession: history[0] }
 }
+
+// ── Analytics helpers ──────────────────────────────────────────────────────
+
+export function sessionVolume(session: Session): number {
+  return session.exercises.reduce((total, ex) => {
+    const doneCount = ex.sets.filter(s => s.done).length
+    const weight = ex.sets.find(s => s.weightKg)?.weightKg ?? 0
+    return total + weight * doneCount
+  }, 0)
+}
+
+export function getTotalVolume(): number {
+  return getHistory().reduce((t, s) => t + sessionVolume(s), 0)
+}
+
+export function getMaxWeightPerExercise(): { id: string; name: string; weightKg: number }[] {
+  const map: Record<string, { name: string; weightKg: number }> = {}
+  for (const session of getHistory()) {
+    for (const ex of session.exercises) {
+      for (const set of ex.sets) {
+        if (set.done && set.weightKg && set.weightKg > 0) {
+          if (!map[ex.exerciseId] || set.weightKg > map[ex.exerciseId].weightKg) {
+            map[ex.exerciseId] = { name: ex.name, weightKg: set.weightKg }
+          }
+        }
+      }
+    }
+  }
+  return Object.entries(map)
+    .map(([id, v]) => ({ id, ...v }))
+    .sort((a, b) => b.weightKg - a.weightKg)
+    .slice(0, 8)
+}
+
+export function getWeeklySessionCounts(weeks: number): number[] {
+  const history = getHistory()
+  const counts = Array(weeks).fill(0)
+  const now = new Date()
+  const startOfCurrentWeek = new Date(now)
+  startOfCurrentWeek.setDate(now.getDate() - (now.getDay() + 6) % 7)
+  startOfCurrentWeek.setHours(0, 0, 0, 0)
+  for (const s of history) {
+    const d = new Date(s.dateISO)
+    const diffMs = startOfCurrentWeek.getTime() - d.getTime()
+    const diffWeeks = Math.floor(diffMs / (7 * 24 * 3600 * 1000))
+    if (diffWeeks >= 0 && diffWeeks < weeks) counts[weeks - 1 - diffWeeks]++
+  }
+  return counts
+}
+
+export function getTrainingStreak(): number {
+  const history = getHistory()
+  if (history.length === 0) return 0
+  const getMonday = (d: Date) => {
+    const date = new Date(d)
+    const day = (date.getDay() + 6) % 7
+    date.setDate(date.getDate() - day)
+    date.setHours(0, 0, 0, 0)
+    return date.getTime()
+  }
+  const sessionWeeks = new Set(history.map(s => getMonday(new Date(s.dateISO))))
+  let current = getMonday(new Date())
+  let streak = 0
+  while (sessionWeeks.has(current)) {
+    streak++
+    current -= 7 * 24 * 3600 * 1000
+  }
+  return streak
+}
+
+export function getNextRecommendedDayIndex(planDayIds: string[]): number {
+  const history = getHistory()
+  if (history.length === 0 || planDayIds.length === 0) return 0
+  const lastDayId = history[0].dayId
+  const lastIndex = planDayIds.indexOf(lastDayId)
+  if (lastIndex === -1) return 0
+  return (lastIndex + 1) % planDayIds.length
+}
+
+export function getDaysSinceLastSession(): number | null {
+  const history = getHistory()
+  if (history.length === 0) return null
+  const last = new Date(history[0].dateISO)
+  const now = new Date()
+  return Math.floor((now.getTime() - last.getTime()) / (24 * 3600 * 1000))
+}
