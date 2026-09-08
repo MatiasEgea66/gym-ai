@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import {
   hasPasskey, isPasskeySupported, registerPasskey,
@@ -22,11 +22,8 @@ export default function LoginScreen({ onLogin }: Props) {
   const [error, setError] = useState('')
   const [showPasskeyPrompt, setShowPasskeyPrompt] = useState(false)
   const [pendingUser, setPendingUser] = useState<{ id: string; email: string; refresh: string } | null>(null)
-  const [canPasskey, setCanPasskey] = useState(false)
-
-  useEffect(() => {
-    setCanPasskey(hasPasskey() && isPasskeySupported())
-  }, [])
+  const [canPasskey] = useState(() => hasPasskey() && isPasskeySupported())
+  const autoTriggered = useRef(false)
 
   async function handleFaceId() {
     setLoading(true)
@@ -35,14 +32,22 @@ export default function LoginScreen({ onLogin }: Props) {
       const ok = await authenticateWithPasskey()
       if (!ok) { setError('Face ID no reconocido'); return }
       const refresh = getStoredRefreshToken()
-      if (!refresh) { setError('Sesión expirada, iniciá sesión con contraseña'); clearPasskey(); setCanPasskey(false); return }
+      if (!refresh) { clearPasskey(); setError('Sesión expirada, iniciá sesión con contraseña'); return }
       const { error: err } = await supabase.auth.refreshSession({ refresh_token: refresh })
-      if (err) { setError('Sesión expirada, iniciá sesión con contraseña'); clearPasskey(); setCanPasskey(false); return }
+      if (err) { clearPasskey(); setError('Sesión expirada, iniciá sesión con contraseña'); return }
       onLogin()
     } finally {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    if (canPasskey && !autoTriggered.current) {
+      autoTriggered.current = true
+      handleFaceId()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
