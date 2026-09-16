@@ -34,7 +34,20 @@ function newDay(index: number): CustomDay {
 export default function PlanEditorScreen({ plan, onBack, onSaved }: Props) {
   const isEdit = !!plan
   const [name, setName] = useState(plan?.name ?? '')
-  const [days, setDays] = useState<CustomDay[]>(plan?.customDays ?? [newDay(0)])
+  const [days, setDays] = useState<CustomDay[]>(() => {
+    const raw = plan?.customDays ?? [newDay(0)]
+    return raw.map((day) => {
+      if (day.exercises.length === 0 && day.blocks && day.blocks.length > 0) {
+        return {
+          ...day,
+          exercises: day.blocks.flatMap((b) =>
+            b.exercises.map((ex) => ({ ...ex, sets: b.rounds ?? 3 }))
+          ),
+        }
+      }
+      return day
+    })
+  })
   const [addingExFor, setAddingExFor] = useState<string | null>(null)
   const [newEx, setNewEx] = useState<CustomExercise>(newExercise)
 
