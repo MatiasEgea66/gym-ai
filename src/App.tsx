@@ -6,7 +6,7 @@ import RutinaScreen from './screens/RutinaScreen'
 import HistorialScreen from './screens/HistorialScreen'
 import PerfilScreen from './screens/PerfilScreen'
 import DayDetailScreen from './screens/DayDetailScreen'
-import WorkoutSessionScreen from './screens/WorkoutSessionScreen'
+import WorkoutSessionScreen, { clearSavedWorkout } from './screens/WorkoutSessionScreen'
 import LoginScreen from './screens/LoginScreen'
 import PlanEditorScreen from './screens/PlanEditorScreen'
 import type { Day } from './data/plan'
@@ -32,6 +32,17 @@ function App() {
       const isAuthenticated = hasSupabaseSession || hasLegacySession
       // Always require Face ID on open if passkey is registered
       const needsFaceId = isAuthenticated && hasPasskey() && isPasskeySupported()
+      if (isAuthenticated) {
+        try {
+          const raw = localStorage.getItem('gymai:activeWorkout')
+          if (raw) {
+            const saved = JSON.parse(raw)
+            if (saved.day && Date.now() - saved.savedAt < 4 * 3600 * 1000) {
+              setScreen({ type: 'session', day: saved.day })
+            }
+          }
+        } catch { /* ignore */ }
+      }
       setIsLoggedIn(needsFaceId ? false : isAuthenticated)
       setAuthReady(true)
     })
@@ -66,7 +77,7 @@ function App() {
   if (!isLoggedIn) return <LoginScreen onLogin={() => setIsLoggedIn(true)} />
 
   if (screen.type === 'session') {
-    return <WorkoutSessionScreen day={screen.day} onFinish={() => { setRefreshKey((k) => k + 1); setTab('historial'); setScreen({ type: 'tabs' }) }} onExit={() => setScreen({ type: 'tabs' })} />
+    return <WorkoutSessionScreen day={screen.day} onFinish={() => { setRefreshKey((k) => k + 1); setTab('historial'); setScreen({ type: 'tabs' }) }} onExit={() => { clearSavedWorkout(); setScreen({ type: 'tabs' }) }} />
   }
   if (screen.type === 'dayDetail') {
     return <DayDetailScreen day={screen.day} onBack={() => setScreen({ type: 'tabs' })} onStart={() => setScreen({ type: 'session', day: screen.day })} />

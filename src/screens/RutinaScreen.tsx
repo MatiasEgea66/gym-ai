@@ -45,6 +45,24 @@ export default function RutinaScreen({ onOpenDay, onNewPlan, onEditPlan }: Props
     return history.filter((s) => (s.planId ?? 'plan-1') === planId).length
   }
 
+  function toEditable(plan: Plan, days: Day[]): Plan {
+    if (plan.customDays) return plan
+    return {
+      ...plan,
+      customDays: days.map((day) => ({
+        id: day.id,
+        label: day.dayLabel,
+        title: day.title,
+        exercises: day.blocks.flatMap((b) =>
+          b.exercises.map((ex) => ({
+            id: ex.id, name: ex.name, target: ex.target,
+            description: ex.description, sets: b.rounds ?? 3, bodyweight: ex.bodyweight,
+          }))
+        ),
+      })),
+    }
+  }
+
   function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -76,11 +94,9 @@ export default function RutinaScreen({ onOpenDay, onNewPlan, onEditPlan }: Props
             <p style={{ fontSize: '15px', fontWeight: '700', color: C.text }}>{activePlan.name}</p>
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
-            {isCustom && (
-              <button onClick={() => onEditPlan(activePlan)} style={{ width: '32px', height: '32px', background: 'rgba(255,255,255,0.07)', border: `1px solid ${C.border}`, borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                <Pencil size={14} color={C.muted} />
-              </button>
-            )}
+            <button onClick={() => onEditPlan(toEditable(activePlan, planDays))} style={{ width: '32px', height: '32px', background: 'rgba(255,255,255,0.07)', border: `1px solid ${C.border}`, borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+              <Pencil size={14} color={C.muted} />
+            </button>
             {plans.length > 1 && (
               <button onClick={() => setShowPlans(!showPlans)} style={{ padding: '7px 12px', background: 'rgba(255,255,255,0.06)', border: `1px solid ${C.border}`, borderRadius: '10px', fontSize: '12px', fontWeight: '600', color: C.muted, cursor: 'pointer' }}>
                 Cambiar

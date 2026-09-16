@@ -11,6 +11,22 @@ function setsForExercise(rounds: number | undefined) { return rounds ?? 1 }
 function fmt(sec: number) { return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}` }
 function todayStr() { return new Date().toISOString().split('T')[0] }
 
+const WORKOUT_KEY = 'gymai:activeWorkout'
+const WORKOUT_TTL = 4 * 3600 * 1000
+
+function getSavedWorkout(dayId: string): { sets: Record<string, SetState[]>; weights: Record<string, number | undefined>; startedAt: number } | null {
+  try {
+    const raw = localStorage.getItem(WORKOUT_KEY)
+    if (!raw) return null
+    const data = JSON.parse(raw)
+    if (data.dayId !== dayId) return null
+    if (Date.now() - data.savedAt > WORKOUT_TTL) return null
+    return data
+  } catch { return null }
+}
+
+export function clearSavedWorkout() { localStorage.removeItem(WORKOUT_KEY) }
+
 const CONFETTI_COLORS = ['#00C896', '#00A060', '#5B73FF', '#8B5CF6', '#00E5B0', '#FFFFFF', '#3DFFD0', '#7BFFCE']
 
 const CONFETTI_STYLE = `
@@ -32,28 +48,38 @@ const CONFETTI_STYLE = `
 `
 
 export default function WorkoutSessionScreen({ day, onFinish, onExit }: Props) {
-  const [startedAt] = useState(Date.now)
-  const [elapsed, setElapsed] = useState(0)
+  const allExercises = useMemo(() =>
+    day.blocks.flatMap((block) => block.exercises.map((ex) => ({ block, ex, totalSets: setsForExercise(block.rounds) }))),
+    [day])
+
+  const saved = useMemo(() => getSavedWorkout(day.id), [day.id])
+
+  const [startedAt] = useState(() => saved?.startedAt ?? Date.now())
+  const [elapsed, setElapsed] = useState(() => saved ? Math.round((Date.now() - saved.startedAt) / 1000) : 0)
   const [phase, setPhase] = useState<'active' | 'done'>('active')
   const [confirmExit, setConfirmExit] = useState(false)
   const [restLeft, setRestLeft] = useState<number | null>(null)
   const [sessionDate, setSessionDate] = useState(todayStr)
 
-  const allExercises = useMemo(() =>
-    day.blocks.flatMap((block) => block.exercises.map((ex) => ({ block, ex, totalSets: setsForExercise(block.rounds) }))),
-    [day])
-
   const [sets, setSets] = useState<Record<string, SetState[]>>(() => {
+    if (saved) return saved.sets
     const init: Record<string, SetState[]> = {}
     for (const { ex, totalSets } of allExercises) init[ex.id] = Array.from({ length: totalSets }, () => ({ done: false }))
     return init
   })
 
   const [weights, setWeights] = useState<Record<string, number | undefined>>(() => {
+    if (saved) return saved.weights
     const init: Record<string, number | undefined> = {}
     for (const { ex } of allExercises) init[ex.id] = getLastWeight(ex.id)
     return init
   })
+
+  // Persist workout state so it survives app reload/background kill
+  useEffect(() => {
+    if (phase !== 'active') return
+    localStorage.setItem(WORKOUT_KEY, JSON.stringify({ dayId: day.id, day, sets, weights, startedAt, savedAt: Date.now() }))
+  }, [sets, weights, phase, day, startedAt])
 
   // Capture initial last weights as baseline for PR detection
   const lastWeightsRef = useRef<Record<string, number | undefined>>({})
@@ -113,6 +139,7 @@ export default function WorkoutSessionScreen({ day, onFinish, onExit }: Props) {
   }
 
   function saveAndFinish() {
+    clearSavedWorkout()
     const plan = getActivePlan()
     const exercises: ExerciseLog[] = allExercises.map(({ ex, totalSets: n }) => ({
       exerciseId: ex.id, name: ex.name,
